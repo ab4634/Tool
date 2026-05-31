@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>國小國語打字比賽系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Bpmf+Gen+Sen+Rounded&display=swap'); /* 嘗試引入注音字型，若無則用系統字 */
+        
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f3f4f6;
+        }
+
+        .typing-font {
+            font-family: 'Noto Sans TC', monospace;
+            letter-spacing: 0.1em;
+        }
+
+        /* Custom scrollbar */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 5px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 5px;
+            border: 2px solid #f1f1f1;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        .char-correct {
+            color: #16a34a; /* Green */
+            background-color: #dcfce7;
+            border-radius: 2px;
+        }
+        
+        .char-incorrect {
+            color: #dc2626; /* Red */
+            background-color: #fee2e2;
+            text-decoration: underline;
+        }
+
+        .char-current {
+            border-bottom: 3px solid #3b82f6;
+            background-color: #e0f2fe;
+        }
+
+        /* Input styling */
+        .line-input {
+            background-color: transparent;
+            border: none;
+            border-bottom: 2px solid #e2e8f0;
+            width: 100%;
+            padding: 8px 0;
+            outline: none;
+            transition: all 0.2s;
+            color: #1e293b;
+        }
+        .line-input:focus {
+            border-bottom-color: #3b82f6;
+            background-color: #f0f9ff;
+        }
+        .line-input:disabled {
+            background-color: #f8fafc;
+            border-bottom-color: #f1f5f9;
+            color: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        /* Zhuyin (Ruby) Styling */
+        ruby {
+            display: inline-flex;
+            flex-direction: column-reverse;
+            align-items: center;
+            vertical-align: bottom;
+            margin-right: 0.05em;
+        }
+        rt {
+            display: block;
+            font-size: 0.55em; 
+            line-height: 1.2;
+            text-align: center;
+            color: #64748b;
+            font-weight: normal;
+            font-family: system-ui, -apple-system, sans-serif; /* Fallback for clear zhuyin */
+            letter-spacing: 0;
+        }
+        
+        /* Hide zhuyin when option is unchecked via CSS class on container */
+        .no-zhuyin rt {
+            display: none;
+        }
+        .no-zhuyin ruby {
+            display: inline;
+            margin-right: 0;
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+
+    <!-- Header & Controls -->
+    <header class="bg-white shadow-md p-4 z-20 relative flex-none">
+        <div class="max-w-6xl mx-auto flex flex-col xl:flex-row justify-between items-center gap-4">
+            <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2 whitespace-nowrap">
+                <span class="text-3xl">⌨️</span> 
+                <span class="hidden md:inline">國小國語</span>打字練習
+            </h1>
+            
+            <div class="flex flex-col md:flex-row items-center gap-3 w-full xl:w-auto">
+                <!-- Source Selection -->
+                <div class="relative w-full md:w-72 group">
+                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-500">
+                        📖
+                    </div>
+                    <select id="textSource" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 p-2.5 transition-colors cursor-pointer hover:bg-white">
+                        <optgroup label="第一課">
+                            <option value="L01">01. 心的悄悄話</option>
+                        </optgroup>
+                        <optgroup label="第二課：妙故事點點名">
+                            <option value="L02_1">02-1. 歪打正著</option>
+                            <option value="L02_2">02-2. 忙中有錯</option>
+                        </optgroup>
+                        <optgroup label="第三課">
+                            <option value="L03">03. 繞口令村</option>
+                        </optgroup>
+                        <optgroup label="第四課">
+                            <option value="L04">04. 小丑魚和海葵</option>
+                        </optgroup>
+                        <optgroup label="第五課">
+                            <option value="L05">05. 飛舞的絲帶</option>
+                        </optgroup>
+                        <optgroup label="第六課">
+                            <option value="L06">06. 小女生</option>
+                        </optgroup>
+                        <optgroup label="第七課">
+                            <option value="L07">07. 淡水小鎮 (詩歌)</option>
+                        </optgroup>
+                        <optgroup label="第八課">
+                            <option value="L08">08. 安平古堡參觀記</option>
+                        </optgroup>
+                        <optgroup label="第九課">
+                            <option value="L09">09. 馬太鞍的巴拉告</option>
+                        </optgroup>
+                        <optgroup label="第十課">
+                            <option value="L10">10. 狐狸的故事 (寓言詩)</option>
+                        </optgroup>
+                        <optgroup label="第十一課">
+                            <option value="L11">11. 巨人的花園</option>
+                        </optgroup>
+                        <optgroup label="第十二課">
+                            <option value="L12">12. 奇特的朋友</option>
+                        </optgroup>
+                        <optgroup label="自訂功能">
+                            <option value="custom" class="font-bold text-blue-600">📂 上傳文字檔 (.txt)...</option>
+                        </optgroup>
+                    </select>
+                </div>
+
+                <!-- Zhuyin Toggle -->
+                <label class="flex items-center gap-2 cursor-pointer bg-orange-50 px-3 py-2 rounded-lg border border-orange-200 hover:bg-orange-100 transition-colors">
+                    <input type="checkbox" id="zhuyinToggle" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+                    <span class="text-sm font-medium text-gray-700 select-none">顯示注音</span>
+                </label>
+                
+                <input type="file" id="fileInput" accept=".txt" class="hidden"/>
+
+                <!-- Time Setting -->
+                <div class="flex items-center bg-gray-50 rounded-lg border border-gray-300 px-2 py-1">
+                    <span class="text-sm text-gray-600 mr-2">時間:</span>
+                    <input type="number" id="timeSetting" value="10" min="1" max="60" class="w-12 bg-transparent border-0 p-0 text-center text-gray-800 font-bold focus:ring-0">
+                    <span class="text-sm text-gray-500 ml-1">分</span>
+                </div>
+
+                <!-- Timer Display -->
+                <div id="timerDisplay" class="text-2xl font-mono font-bold text-blue-600 w-24 text-center bg-blue-50 rounded px-2 py-1">
+                    10:00
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex gap-2 w-full md:w-auto justify-end">
+                <button id="startBtn" class="flex-1 md:flex-none text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
+                    開始
+                </button>
+                <button id="stopBtn" disabled class="flex-1 md:flex-none text-white bg-red-500 hover:bg-red-600 focus:ring-4 focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
+                    結束
+                </button>
+                <button id="resetBtn" class="flex-1 md:flex-none text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 focus:ring-4 focus:ring-gray-200 font-medium rounded-lg text-sm px-5 py-2.5 transition-colors">
+                    重置
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 max-w-5xl mx-auto w-full p-4 flex flex-col gap-4 overflow-hidden">
+        
+        <!-- Live Stats Bar -->
+        <div class="flex-none flex flex-wrap justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-sm text-gray-600 gap-2">
+            <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-gray-400" id="statusDot"></span>
+                狀態: <span id="statusText" class="font-semibold text-gray-700">準備就緒</span>
+            </div>
+            <div class="flex gap-6">
+                <span class="flex items-center gap-1">
+                    🎯 完成率: <span id="progressText" class="font-bold text-gray-800 text-lg">0%</span>
+                </span>
+                <span class="hidden md:flex items-center gap-1">
+                    ⚡ 速度估算: <span id="liveWPM" class="font-bold text-gray-400">--</span> CPM
+                </span>
+                <span class="flex items-center gap-1 text-gray-400 text-xs">
+                    (按 Enter 跳下一行)
+                </span>
+            </div>
+        </div>
+
+        <!-- Typing Container (Interleaved Lines) -->
+        <div id="linesContainer" class="flex-1 bg-white rounded-2xl shadow-lg border border-gray-200 overflow-y-auto custom-scrollbar p-6 space-y-6 relative no-zhuyin">
+            <!-- Dynamic Content generated by JS -->
+            <div class="text-center text-gray-400 mt-10">
+                載入中...
+            </div>
+        </div>
+    </main>
+
+    <!-- Result Modal -->
+    <div id="resultModal" class="fixed inset-0 bg-gray-900/60 hidden items-center justify-center z-50 backdrop-blur-md transition-all duration-300 opacity-0">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-lg w-full mx-4 transform transition-all scale-95" id="modalContent">
+            <div class="text-center mb-8">
+                <div class="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 text-4xl">
+                    🏆
+                </div>
+                <h2 class="text-3xl font-bold text-gray-800 mb-2">練習完成!</h2>
+                <p class="text-gray-500">休息一下，來看看你的成績吧</p>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4 mb-8">
+                <div class="bg-green-50 p-5 rounded-2xl text-center border border-green-100 transform hover:scale-105 transition-transform">
+                    <div class="text-3xl font-bold text-green-600" id="resCorrect">0</div>
+                    <div class="text-xs text-green-800 font-bold tracking-wide uppercase mt-1">正確字數</div>
+                </div>
+                <div class="bg-red-50 p-5 rounded-2xl text-center border border-red-100 transform hover:scale-105 transition-transform">
+                    <div class="text-3xl font-bold text-red-600" id="resIncorrect">0</div>
+                    <div class="text-xs text-red-800 font-bold tracking-wide uppercase mt-1">錯誤字數</div>
+                </div>
+                <div class="bg-blue-50 p-5 rounded-2xl text-center border border-blue-100 transform hover:scale-105 transition-transform">
+                    <div class="text-3xl font-bold text-blue-600" id="resAccuracy">0%</div>
+                    <div class="text-xs text-blue-800 font-bold tracking-wide uppercase mt-1">正確率</div>
+                </div>
+                <div class="bg-purple-50 p-5 rounded-2xl text-center border border-purple-100 transform hover:scale-105 transition-transform">
+                    <div class="text-3xl font-bold text-purple-600" id="resCPM">0</div>
+                    <div class="text-xs text-purple-800 font-bold tracking-wide uppercase mt-1">速度 (字/分)</div>
+                </div>
+            </div>
+
+            <button onclick="closeModal()" class="w-full bg-gray-800 hover:bg-gray-900 text-white font-bold py-4 px-6 rounded-xl transition-all shadow-lg hover:shadow-xl transform active:scale-95 flex items-center justify-center gap-2">
+                <span>🔄</span> 再挑戰一次
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // 資料庫結構：
+        // text: 純文字內容
+        // zhuyin_codes: 對應每個漢字的注音代碼 (以空格分隔)，標點符號不需對應 (會自動略過)
+        // 為了確保精準，這裡採用預先建立好的對照表
+        
+        const TEXTS = {
+            L01: {
+                text: `爺爺教我寫心字：「心是一葉舟，細雨灑輕舟，一點落舟前，一點落舟中，一點落舟後。\n心的小船輕輕走，小船上要載什麼呢？只載秋天好不好？不好，不好！一下秋風吹，一下秋雨落，秋風秋雨落心上，讓人好發愁！\n只載自己好不好？不好，不好！一下變成息，愛嘆息。一下變成忌，愛忌妒。心的小船上，還是讓我載著你，讓你變成您，一起去看美麗新世界！`,
+                zhuyin_codes: `ㄧㄝˊ ㄧㄝ˙ ㄐㄧㄠ ㄨㄛˇ ㄒㄧㄝˇ ㄒㄧㄣ ㄗˋ ㄒㄧㄣ ㄕˋ ㄧˊ ㄧㄝˋ ㄓㄡ ㄒㄧˋ ㄩˇ ㄙㄚˇ ㄑㄧㄥ ㄓㄡ ㄧˋ ㄉㄧㄢˇ ㄌㄨㄛˋ ㄓㄡ ㄑㄧㄢˊ ㄧˋ ㄉㄧㄢˇ ㄌㄨㄛˋ ㄓㄡ ㄓㄨㄥ ㄧˋ ㄉㄧㄢˇ ㄌㄨㄛˋ ㄓㄡ ㄏㄡˋ ㄒㄧㄣ ㄉㄜ˙ ㄒㄧㄠˇ ㄔㄨㄢˊ ㄑㄧㄥ ㄑㄧㄥ ㄗㄡˇ ㄒㄧㄠˇ ㄔㄨㄢˊ ㄕㄤˋ ㄧㄠˋ ㄗㄞˋ ㄕㄣˊ ㄇㄜ˙ ㄋㄜ˙ ㄓˇ ㄗㄞˋ ㄑㄧㄡ ㄊㄧㄢ ㄏㄠˇ ㄅㄨˋ ㄏㄠˇ ㄅㄨˋ ㄏㄠˇ ㄅㄨˋ ㄏㄠˇ ㄧˊ ㄒㄧㄚˋ ㄑㄧㄡ ㄈㄥ ㄔㄨㄟ ㄧˊ ㄒㄧㄚˋ ㄑㄧㄡ ㄩˇ ㄌㄨㄛˋ ㄑㄧㄡ ㄈㄥ ㄑㄧㄡ ㄩˇ ㄌㄨㄛˋ ㄒㄧㄣ ㄕㄤˋ ㄖㄤˋ ㄖㄣˊ ㄏㄠˇ ㄈㄚ ㄔㄡˊ ㄓˇ ㄗㄞˋ ㄗˋ ㄐㄧˇ ㄏㄠˇ ㄅㄨˋ ㄏㄠˇ ㄅㄨˋ ㄏㄠˇ ㄅㄨˋ ㄏㄠˇ ㄧˊ ㄒㄧㄚˋ ㄅㄧㄢˋ ㄔㄥˊ ㄒㄧˊ ㄞˋ ㄊㄢˋ ㄒㄧˊ ㄧˊ ㄒㄧㄚˋ ㄅㄧㄢˋ ㄔㄥˊ ㄐㄧˋ ㄞˋ ㄐㄧˋ ㄉㄨˋ ㄒㄧㄣ ㄉㄜ˙ ㄒㄧㄠˇ ㄔㄨㄢˊ ㄕㄤˋ ㄏㄞˊ ㄕˋ ㄖㄤˋ ㄨㄛˇ ㄗㄞˋ ㄓㄜ˙ ㄋㄧˇ ㄖㄤˋ ㄋㄧˇ ㄅㄧㄢˋ ㄔㄥˊ ㄋㄧㄣˊ ㄧˋ ㄑㄧˇ ㄑㄩˋ ㄎㄢˋ ㄇㄟˇ ㄌㄧˋ ㄒㄧㄣ ㄕˋ ㄐㄧㄝˋ`
+            },
+            L02_1: {
+                text: `以樂最近經常看著窗戶外面，因為那裡有棵大樹，常常有小鳥飛過去。有一次上課，老師發現他正看著外面，就對他說：以樂，請你說一說『霧裡看花』是什麼意思？以樂緊張的站起來，雖然他張大了眼睛看著黑板，可是怎麼也找不到答案。最後只好不好意思的低著頭，小聲的說：我……我……看不清楚。老師說：這次你說對了，不過，你老是看窗外是不行的，上課要專心一點，才能有收穫。`,
+                zhuyin_codes: `ㄧˇ ㄌㄜˋ ㄗㄨㄟˋ ㄐㄧㄣˋ ㄐㄧㄥ ㄔㄤˊ ㄎㄢˋ ㄓㄜ˙ ㄔㄨㄤ ㄏㄨˋ ㄨㄞˋ ㄇㄧㄢˋ ㄧㄣ ㄨㄟˋ ㄋㄚˋ ㄌㄧˇ ㄧㄡˇ ㄎㄜ ㄉㄚˋ ㄕㄨˋ ㄔㄤˊ ㄔㄤˊ ㄧㄡˇ ㄒㄧㄠˇ ㄋㄧㄠˇ ㄈㄟ ㄍㄨㄛˋ ㄑㄩˋ ㄧㄡˇ ㄧˊ ㄘˋ ㄕㄤˋ ㄎㄜˋ ㄌㄠˇ ㄕ ㄈㄚ ㄒㄧㄢˋ ㄊㄚ ㄓㄥˋ ㄎㄢˋ ㄓㄜ˙ ㄨㄞˋ ㄇㄧㄢˋ ㄐㄧㄡˋ ㄉㄨㄟˋ ㄊㄚ ㄕㄨㄛ ㄧˇ ㄌㄜˋ ㄑㄧㄥˇ ㄋㄧˇ ㄕㄨㄛ ㄧ ㄕㄨㄛ ㄨˋ ㄌㄧˇ ㄎㄢˋ ㄏㄨㄚ ㄕˋ ㄕㄣˊ ㄇㄜ˙ ㄧˋ ㄙ ㄧˇ ㄌㄜˋ ㄐㄧㄣˇ ㄓㄤ ㄉㄜ˙ ㄓㄢˋ ㄑㄧˇ ㄌㄞˊ ㄙㄨㄟ ㄖㄢˊ ㄊㄚ ㄓㄤ ㄉㄚˋ ㄌㄜ˙ ㄧㄢˇ ㄐㄧㄥ ㄎㄢˋ ㄓㄜ˙ ㄏㄟ ㄅㄢˇ ㄎㄜˇ ㄕˋ ㄗㄣˇ ㄇㄜ˙ ㄧㄝˇ ㄓㄠˇ ㄅㄨˊ ㄉㄠˋ ㄉㄚˊ ㄢˋ ㄗㄨㄟˋ ㄏㄡˋ ㄓˇ ㄏㄠˇ ㄅㄨˋ ㄏㄠˇ ㄧˋ ㄙ ㄉㄜ˙ ㄉㄧ ㄓㄜ˙ ㄊㄡˊ ㄒㄧㄠˇ ㄕㄥ ㄉㄜ˙ ㄕㄨㄛ ㄨㄛˇ ㄨㄛˇ ㄎㄢˋ ㄅㄨˋ ㄑㄧㄥ ㄔㄨˇ ㄌㄠˇ ㄕ ㄕㄨㄛ ㄓㄜˋ ㄘˋ ㄋㄧˇ ㄕㄨㄛ ㄉㄨㄟˋ ㄌㄜ˙ ㄅㄨˊ ㄍㄨㄛˋ ㄋㄧˇ ㄌㄠˇ ㄕˋ ㄎㄢˋ ㄔㄨㄤ ㄨㄞˋ ㄕˋ ㄅㄨˋ ㄒㄧㄥˊ ㄉㄜ˙ ㄕㄤˋ ㄎㄜˋ ㄧㄠˋ ㄓㄨㄢ ㄒㄧㄣ ㄧˋ ㄉㄧㄢˇ ㄘㄞˊ ㄋㄥˊ ㄧㄡˇ ㄕㄡ ㄏㄨㄛˋ`
+            },
+            L02_2: {
+                text: `有一天下著大雨，王叔叔加班到很晚才下班，他一坐上公車，就趕緊找位子坐下。因為太累了，他一下子就睡著，還夢見自己參加短跑比賽。一馬當先的他，眼看著終點就在眼前……。這時，車子突然一陣晃動，當他驚醒時，發現已經到站了。王叔叔手忙腳亂，慌慌張張的抓起雨傘，飛也似的下車，沒想到有一位先生跟在後面，一邊追一邊大聲喊叫：那是我的雨傘，快還來！`,
+                zhuyin_codes: `ㄧㄡˇ ㄧˋ ㄊㄧㄢ ㄒㄧㄚˋ ㄓㄜ˙ ㄉㄚˋ ㄩˇ ㄨㄤˊ ㄕㄨˊ ㄕㄨ˙ ㄐㄧㄚ ㄅㄢ ㄉㄠˋ ㄏㄣˇ ㄨㄢˇ ㄘㄞˊ ㄒㄧㄚˋ ㄅㄢ ㄊㄚ ㄧˊ ㄗㄨㄛˋ ㄕㄤˋ ㄍㄨㄥ ㄔㄜ ㄐㄧㄡˋ ㄍㄢˇ ㄐㄧㄣˇ ㄓㄠˇ ㄨㄟˋ ㄗ˙ ㄗㄨㄛˋ ㄒㄧㄚˋ ㄧㄣ ㄨㄟˋ ㄊㄞˋ ㄌㄟˋ ㄌㄜ˙ ㄊㄚ ㄧˊ ㄒㄧㄚˋ ㄗ˙ ㄐㄧㄡˋ ㄕㄨㄟˋ ㄓㄠˊ ㄏㄞˊ ㄇㄥˋ ㄐㄧㄢˋ ㄗˋ ㄐㄧˇ ㄘㄢ ㄐㄧㄚ ㄉㄨㄢˇ ㄆㄠˇ ㄅㄧˇ ㄙㄞˋ ㄧˋ ㄇㄚˇ ㄉㄤ ㄒㄧㄢ ㄉㄜ˙ ㄊㄚ ㄧㄢˇ ㄎㄢˋ ㄓㄜ˙ ㄓㄨㄥ ㄉㄧㄢˇ ㄐㄧㄡˋ ㄗㄞˋ ㄧㄢˇ ㄑㄧㄢˊ ㄓㄜˋ ㄕˊ ㄔㄜ ㄗ˙ ㄊㄨˊ ㄖㄢˊ ㄧˊ ㄓㄣˋ ㄏㄨㄤˋ ㄉㄨㄥˋ ㄉㄤ ㄊㄚ ㄐㄧㄥ ㄒㄧㄥˇ ㄕˊ ㄈㄚ ㄒㄧㄢˋ ㄧˇ ㄐㄧㄥ ㄉㄠˋ ㄓㄢˋ ㄌㄜ˙ ㄨㄤˊ ㄕㄨˊ ㄕㄨ˙ ㄕㄡˇ ㄇㄤˊ ㄐㄧㄠˇ ㄌㄨㄢˋ ㄏㄨㄤ ㄏㄨㄤ ㄓㄤ ㄓㄤ ㄉㄜ˙ ㄓㄨㄚ ㄑㄧˇ ㄩˇ ㄙㄢˇ ㄈㄟ ㄧㄝˇ ㄙˋ ㄉㄜ˙ ㄒㄧㄚˋ ㄔㄜ ㄇㄟˊ ㄒㄧㄤˇ ㄉㄠˋ ㄧㄡˇ ㄧˊ ㄨㄟˋ ㄒㄧㄢ ㄕㄥ ㄍㄣ ㄗㄞˋ ㄏㄡˋ ㄇㄧㄢˋ ㄧˋ ㄅㄧㄢ ㄓㄨㄟ ㄧˋ ㄅㄧㄢ ㄉㄚˋ ㄕㄥ ㄏㄢˇ ㄐㄧㄠˋ ㄋㄚˋ ㄕˋ ㄨㄛˇ ㄉㄜ˙ ㄩˇ ㄙㄢˇ ㄎㄨㄞˋ ㄏㄨㄢˊ ㄌㄞˊ`
+            },
+            L03: {
+                text: `我叫小金，是個旅行家。\n兩個多月前，由於突如其來的暴風雨，因此我的船在海上迷失了方向。\n風雨過後，船停在一座小島，這是一個我從來沒有到過的地方。\n一上岸，一個小孩跑過來撞到了我，我趕緊扶著他問：\n「你還好嗎？你要去哪裡？\n小孩說話又急又快：小綠送紅花，小力送黃花，\n小綠想拿紅花換小力的黃花，小力想把黃花換小綠的紅花。\n他們正在送花，我也要去拿一朵花。」\n我還沒聽明白，小孩又跑走了。\n走著走著，我看到一家店，牆上有隻「大公雞」，\n老闆熱情的說：抱著灰雞上飛機，飛機起飛，灰雞要飛。\n我們用料實在，除了最好吃的『灰雞』，飯後還有水果。\n是什麼水果呢？老闆笑咪咪的說：今天有兩種，\n你喜歡『吃葡萄不吐葡萄皮，不吃葡萄倒吐葡萄皮』的葡萄，\n還是『風吹桃枝落桃子，桃枝落桃撞猴子』的桃子呢？\n這兩種都是我們繞口令村有名的水果。\n原來，那個地方就叫繞口令村。\n我在那裡停留十多天，也學會了好幾個有趣的繞口令，直到現在，我還常常想起那裡呢！`,
+                zhuyin_codes: `ㄨㄛˇ ㄐㄧㄠˋ ㄒㄧㄠˇ ㄐㄧㄣ ㄕˋ ㄍㄜ˙ ㄌㄩˇ ㄒㄧㄥˊ ㄐㄧㄚ ㄌㄧㄤˇ ㄍㄜ˙ ㄉㄨㄛ ㄩㄝˋ ㄑㄧㄢˊ ㄧㄡˊ ㄩˊ ㄊㄨˊ ㄖㄨˊ ㄑㄧˊ ㄌㄞˊ ㄉㄜ˙ ㄅㄠˋ ㄈㄥ ㄩˇ ㄧㄣ ㄘˇ ㄨㄛˇ ㄉㄜ˙ ㄔㄨㄢˊ ㄗㄞˋ ㄏㄞˇ ㄕㄤˋ ㄇㄧˊ ㄕ ㄌㄜ˙ ㄈㄤ ㄒㄧㄤˋ ㄈㄥ ㄩˇ ㄍㄨㄛˋ ㄏㄡˋ ㄔㄨㄢˊ ㄊㄧㄥˊ ㄗㄞˋ ㄧˊ ㄗㄨㄛˋ ㄒㄧㄠˇ ㄉㄠˇ ㄓㄜˋ ㄕˋ ㄧˊ ㄍㄜ˙ ㄨㄛˇ ㄘㄨㄥˊ ㄌㄞˊ ㄇㄟˊ ㄧㄡˇ ㄉㄠˋ ㄍㄨㄛˋ ㄉㄜ˙ ㄉㄧˋ ㄈㄤ ㄧˊ ㄕㄤˋ ㄢˋ ㄧˊ ㄍㄜ˙ ㄒㄧㄠˇ ㄏㄞˊ ㄆㄠˇ ㄍㄨㄛˋ ㄌㄞˊ ㄓㄨㄤˋ ㄉㄠˋ ㄌㄜ˙ ㄨㄛˇ ㄨㄛˇ ㄍㄢˇ ㄐㄧㄣˇ ㄈㄨˊ ㄓㄜ˙ ㄊㄚ ㄨㄣˋ ㄋㄧˇ ㄏㄞˊ ㄏㄠˇ ㄇㄚ˙ ㄋㄧˇ ㄧㄠˋ ㄑㄩˋ ㄋㄚˇ ㄌㄧˇ ㄒㄧㄠˇ ㄏㄞˊ ㄕㄨㄛ ㄏㄨㄚˋ ㄧㄡˋ ㄐㄧˊ ㄧㄡˋ ㄎㄨㄞˋ ㄒㄧㄠˇ ㄌㄩˋ ㄙㄨㄥˋ ㄏㄨㄥˊ ㄏㄨㄚ ㄒㄧㄠˇ ㄌㄧˋ ㄙㄨㄥˋ ㄏㄨㄤˊ ㄏㄨㄚ ㄒㄧㄠˇ ㄌㄩˋ ㄒㄧㄤˇ ㄋㄚˊ ㄏㄨㄥˊ ㄏㄨㄚ ㄏㄨㄢˋ ㄒㄧㄠˇ ㄌㄧˋ ㄉㄜ˙ ㄏㄨㄤˊ ㄏㄨㄚ ㄒㄧㄠˇ ㄌㄧˋ ㄒㄧㄤˇ ㄅㄚˇ ㄏㄨㄤˊ ㄏㄨㄚ ㄏㄨㄢˋ ㄒㄧㄠˇ ㄌㄩˋ ㄉㄜ˙ ㄏㄨㄥˊ ㄏㄨㄚ ㄊㄚ ㄇㄣ˙ ㄓㄥˋ ㄗㄞˋ ㄙㄨㄥˋ ㄏㄨㄚ ㄨㄛˇ ㄧㄝˇ ㄧㄠˋ ㄑㄩˋ ㄋㄚˊ ㄧˋ ㄉㄨㄛˇ ㄏㄨㄚ ㄨㄛˇ ㄏㄞˊ ㄇㄟˊ ㄊㄧㄥ ㄇㄧㄥˊ ㄅㄞˊ ㄒㄧㄠˇ ㄏㄞˊ ㄧㄡˋ ㄆㄠˇ ㄗㄡˇ ㄌㄜ˙ ㄗㄡˇ ㄓㄜ˙ ㄗㄡˇ ㄓㄜ˙ ㄨㄛˇ ㄎㄢˋ ㄉㄠˋ ㄧˋ ㄐㄧㄚ ㄉㄧㄢˋ ㄑㄧㄤˊ ㄕㄤˋ ㄧㄡˇ ㄓ ㄉㄚˋ ㄍㄨㄥ ㄐㄧ ㄌㄠˇ ㄅㄢˇ ㄖㄜˋ ㄑㄧㄥˊ ㄉㄜ˙ ㄕㄨㄛ ㄅㄠˋ ㄓㄜ˙ ㄏㄨㄟ ㄐㄧ ㄕㄤˋ ㄈㄟ ㄐㄧ ㄈㄟ ㄐㄧ ㄑㄧˇ ㄈㄟ ㄏㄨㄟ ㄐㄧ ㄧㄠˋ ㄈㄟ ㄨㄛˇ ㄇㄣ˙ ㄩㄥˋ ㄌㄧㄠˋ ㄕˊ ㄗㄞˋ ㄔㄨˊ ㄌㄜ˙ ㄗㄨㄟˋ ㄏㄠˇ ㄔ ㄉㄜ˙ ㄏㄨㄟ ㄐㄧ ㄈㄢˋ ㄏㄡˋ ㄏㄞˊ ㄧㄡˇ ㄕㄨㄟˇ ㄍㄨㄛˇ ㄕˋ ㄕㄣˊ ㄇㄜ˙ ㄕㄨㄟˇ ㄍㄨㄛˇ ㄋㄜ˙ ㄌㄠˇ ㄅㄢˇ ㄒㄧㄠˋ ㄇㄧ ㄇㄧ ㄉㄜ˙ ㄕㄨㄛ ㄐㄧㄣ ㄊㄧㄢ ㄧㄡˇ ㄌㄧㄤˇ ㄓㄨㄥˇ ㄋㄧˇ ㄒㄧˇ ㄏㄨㄢ ㄔ ㄆㄨˊ ㄊㄠˊ ㄅㄨˋ ㄊㄨˇ ㄆㄨˊ ㄊㄠˊ ㄆㄧˊ ㄅㄨˋ ㄔ ㄆㄨˊ ㄊㄠˊ ㄉㄠˋ ㄊㄨˇ ㄆㄨˊ ㄊㄠˊ ㄆㄧˊ ㄉㄜ˙ ㄆㄨˊ ㄊㄠˊ ㄏㄞˊ ㄕˋ ㄈㄥ ㄔㄨㄟ ㄊㄠˊ ㄓ ㄌㄨㄛˋ ㄊㄠˊ ㄗ˙ ㄊㄠˊ ㄓ ㄌㄨㄛˋ ㄊㄠˊ ㄓㄨㄤˋ ㄏㄡˊ ㄗ˙ ㄉㄜ˙ ㄊㄠˊ ㄗ˙ ㄋㄜ˙ ㄓㄜˋ ㄌㄧㄤˇ ㄓㄨㄥˇ ㄉㄡ ㄕˋ ㄨㄛˇ ㄇㄣ˙ ㄖㄠˋ ㄎㄡˇ ㄌㄧㄥˋ ㄘㄨㄣ ㄧㄡˇ ㄇㄧㄥˊ ㄉㄜ˙ ㄕㄨㄟˇ ㄍㄨㄛˇ ㄩㄢˊ ㄌㄞˊ ㄋㄚˋ ㄍㄜ˙ ㄉㄧˋ ㄈㄤ ㄐㄧㄡˋ ㄐㄧㄠˋ ㄖㄠˋ ㄎㄡˇ ㄌㄧㄥˋ ㄘㄨㄣ ㄨㄛˇ ㄗㄞˋ ㄋㄚˋ ㄌㄧˇ ㄊㄧㄥˊ ㄌㄧㄡˊ ㄕˊ ㄉㄨㄛ ㄊㄧㄢ ㄧㄝˇ ㄒㄩㄝˊ ㄏㄨㄟˋ ㄌㄜ˙ ㄏㄠˇ ㄐㄧˇ ㄍㄜ˙ ㄧㄡˇ ㄑㄩˋ ㄉㄜ˙ ㄖㄠˋ ㄎㄡˇ ㄌㄧㄥˋ ㄓˊ ㄉㄠˋ ㄒㄧㄢˋ ㄗㄞˋ ㄨㄛˇ ㄏㄞˊ ㄔㄤˊ ㄔㄤˊ ㄒㄧㄤˇ ㄑㄧˇ ㄋㄚˋ ㄌㄧˇ ㄋㄜ˙`
+            },
+            L04: {
+                text: `在神祕的大海中，有一大片漂亮的海葵，有的像紅寶石，有的像綠寶石，有的像一朵花，有的像一棵樹，形成一個巨大的花園城堡。小丑魚開心自在的和朋友一起在這裡遊玩。\n這一天，有條黃色的大魚在遠遠的地方就看見小丑魚，心中有了一個想法。他慢慢的靠近，好聲好氣的說：早安！這裡真熱鬧，你們在做什麼？好像很有趣，我可以參加嗎？小丑魚笑著說：「你好！我們在玩躲貓貓，你也一起來玩吧！」大魚輕輕擺動尾巴游了過去。沒想到他一靠近，就露出不懷好意的笑容，張開大大的嘴巴，吸了一口氣。小丑魚意識到他居心不良，趕快找地方躲起來。海葵眼看小丑魚驚慌的左右閃躲，大叫一聲：快！躲到我這裡！海葵等到大魚靠近時，抓準時機射出刺針。好痛！大魚哇哇叫，只好使出全力游出花園城堡。\n海葵望著遠去的大魚說：我的觸手雖然美麗，卻是有毒的。小丑魚是我的好朋友，誰都不能欺負他。小丑魚感動的說：「謝謝你！每當我遇到危險，都是你出面幫忙。`,
+                zhuyin_codes: `ㄗㄞˋ ㄕㄣˊ ㄇㄧˋ ㄉㄜ˙ ㄉㄚˋ ㄏㄞˇ ㄓㄨㄥ ㄧㄡˇ ㄧˊ ㄉㄚˋ ㄆㄧㄢˋ ㄆㄧㄠˋ ㄌㄧㄤˋ ㄉㄜ˙ ㄏㄞˇ ㄎㄨㄟˊ ㄧㄡˇ ㄉㄜ˙ ㄒㄧㄤˋ ㄏㄨㄥˊ ㄅㄠˇ ㄕˊ ㄧㄡˇ ㄉㄜ˙ ㄒㄧㄤˋ ㄌㄩˋ ㄅㄠˇ ㄕˊ ㄧㄡˇ ㄉㄜ˙ ㄒㄧㄤˋ ㄧˋ ㄉㄨㄛˇ ㄏㄨㄚ ㄧㄡˇ ㄉㄜ˙ ㄒㄧㄤˋ ㄧˋ ㄎㄜ ㄕㄨˋ ㄒㄧㄥˊ ㄔㄥˊ ㄧˊ ㄍㄜ˙ ㄐㄩˋ ㄉㄚˋ ㄉㄜ˙ ㄏㄨㄚ ㄩㄢˊ ㄔㄥˊ ㄅㄠˇ ㄒㄧㄠˇ ㄔㄡˇ ㄩˊ ㄎㄞ ㄒㄧㄣ ㄗˋ ㄗㄞˋ ㄉㄜ˙ ㄏㄢˋ ㄆㄥˊ ㄧㄡˇ ㄧˋ ㄑㄧˇ ㄗㄞˋ ㄓㄜˋ ㄌㄧˇ ㄧㄡˊ ㄨㄢˊ ㄓㄜˋ ㄧˋ ㄊㄧㄢ ㄧㄡˇ ㄊㄧㄠˊ ㄏㄨㄤˊ ㄙㄜˋ ㄉㄜ˙ ㄉㄚˋ ㄩˊ ㄗㄞˋ ㄩㄢˇ ㄩㄢˇ ㄉㄜ˙ ㄉㄧˋ ㄈㄤ ㄐㄧㄡˋ ㄎㄢˋ ㄐㄧㄢˋ ㄒㄧㄠˇ ㄔㄡˇ ㄩˊ ㄒㄧㄣ ㄓㄨㄥ ㄧㄡˇ ㄌㄜ˙ ㄧˊ ㄍㄜ˙ ㄒㄧㄤˇ ㄈㄚˇ ㄊㄚ ㄇㄢˋ ㄇㄢˋ ㄉㄜ˙ ㄎㄠˋ ㄐㄧㄣˋ ㄏㄠˇ ㄕㄥ ㄏㄠˇ ㄑㄧˋ ㄉㄜ˙ ㄕㄨㄛ ㄗㄠˇ ㄢ ㄓㄜˋ ㄌㄧˇ ㄓㄣ ㄖㄜˋ ㄋㄠˋ ㄋㄧˇ ㄇㄣ˙ ㄗㄞˋ ㄗㄨㄛˋ ㄕㄣˊ ㄇㄜ˙ ㄏㄠˇ ㄒㄧㄤˋ ㄏㄣˇ ㄧㄡˇ ㄑㄩˋ ㄨㄛˇ ㄎㄜˇ ㄧˇ ㄘㄢ ㄐㄧㄚ ㄇㄚ˙ ㄒㄧㄠˇ ㄔㄡˇ ㄩˊ ㄒㄧㄠˋ ㄓㄜ˙ ㄕㄨㄛ ㄋㄧˇ ㄏㄠˇ ㄨㄛˇ ㄇㄣ˙ ㄗㄞˋ ㄨㄢˊ ㄉㄨㄛˇ ㄇㄠ ㄇㄠ ㄋㄧˇ ㄧㄝˇ ㄧˋ ㄑㄧˇ ㄌㄞˊ ㄨㄢˊ ㄅㄚ˙ ㄉㄚˋ ㄩˊ ㄑㄧㄥ ㄑㄧㄥ ㄅㄞˇ ㄉㄨㄥˋ ㄨㄟˇ ㄅㄚ˙ ㄧㄡˊ ㄌㄜ˙ ㄍㄨㄛˋ ㄑㄩˋ ㄇㄟˊ ㄒㄧㄤˇ ㄉㄠˋ ㄊㄚ ㄧˊ ㄎㄠˋ ㄐㄧㄣˋ ㄐㄧㄡˋ ㄌㄡˋ ㄔㄨ ㄅㄨˋ ㄏㄨㄞˊ ㄏㄠˇ ㄧˋ ㄉㄜ˙ ㄒㄧㄠˋ ㄖㄨㄥˊ ㄓㄤ ㄎㄞ ㄉㄚˋ ㄉㄚˋ ㄉㄜ˙ ㄗㄨㄟˇ ㄅㄚ˙ ㄒㄧ ㄌㄜ˙ ㄧˋ ㄎㄡˇ ㄑㄧˋ ㄒㄧㄠˇ ㄔㄡˇ ㄩˊ ㄧˋ ㄕˋ ㄉㄠˋ ㄊㄚ ㄐㄩ ㄒㄧㄣ ㄅㄨˋ ㄌㄧㄤˊ ㄍㄢˇ ㄎㄨㄞˋ ㄓㄠˇ ㄉㄧˋ ㄈㄤ ㄉㄨㄛˇ ㄑㄧˇ ㄌㄞˊ ㄏㄞˇ ㄎㄨㄟˊ ㄧㄢˇ ㄎㄢˋ ㄒㄧㄠˇ ㄔㄡˇ ㄩˊ ㄐㄧㄥ ㄏㄨㄤ ㄉㄜ˙ ㄗㄨㄛˇ ㄧㄡˋ ㄕㄢˇ ㄉㄨㄛˇ ㄉㄚˋ ㄐㄧㄠˋ ㄧˋ ㄕㄥ ㄎㄨㄞˋ ㄉㄨㄛˇ ㄉㄠˋ ㄨㄛˇ ㄓㄜˋ ㄌㄧˇ ㄏㄞˇ ㄎㄨㄟˊ ㄉㄥˇ ㄉㄠˋ ㄉㄚˋ ㄩˊ ㄎㄠˋ ㄐㄧㄣˋ ㄕˊ ㄓㄨㄚ ㄓㄨㄣˇ ㄕˊ ㄐㄧ ㄕㄜˋ ㄔㄨ ㄘˋ ㄓㄣ ㄏㄠˇ ㄊㄨㄥˋ ㄉㄚˋ ㄩˊ ㄨㄚ ㄨㄚ ㄐㄧㄠˋ ㄓˇ ㄏㄠˇ ㄕˇ ㄔㄨ ㄑㄩㄢˊ ㄌㄧˋ ㄧㄡˊ ㄔㄨ ㄏㄨㄚ ㄩㄢˊ ㄔㄥˊ ㄅㄠˇ ㄏㄞˇ ㄎㄨㄟˊ ㄨㄤˋ ㄓㄜ˙ ㄩㄢˇ ㄑㄩˋ ㄉㄜ˙ ㄉㄚˋ ㄩˊ ㄕㄨㄛ ㄨㄛˇ ㄉㄜ˙ ㄔㄨˋ ㄕㄡˇ ㄙㄨㄟ ㄖㄢˊ ㄇㄟˇ ㄌㄧˋ ㄑㄩㄝˋ ㄕˋ ㄧㄡˇ ㄉㄨˊ ㄉㄜ˙ ㄒㄧㄠˇ ㄔㄡˇ ㄩˊ ㄕˋ ㄨㄛˇ ㄉㄜ˙ ㄏㄠˇ ㄆㄥˊ ㄧㄡˇ ㄕㄟˊ ㄉㄡ ㄅㄨˋ ㄋㄥˊ ㄑㄧ ㄈㄨˋ ㄊㄚ ㄒㄧㄠˇ ㄔㄡˇ ㄩˊ ㄍㄢˇ ㄉㄨㄥˋ ㄉㄜ˙ ㄕㄨㄛ ㄒㄧㄝˋ ㄒㄧㄝ˙ ㄋㄧˇ ㄇㄟˇ ㄉㄤ ㄨㄛˇ ㄩˋ ㄉㄠˋ ㄨㄟˊ ㄒㄧㄢˇ ㄉㄡ ㄕˋ ㄋㄧˇ ㄔㄨ ㄇㄧㄢˋ ㄅㄤ ㄇㄤˊ`
+            },
+            L05: {
+                text: `十月太陽高高掛，我們在朝會時間練習大會操，大家都很努力，跳得滿身汗。終於，總指導的黃老師在臺上說：小朋友大部分都跳得很好，只有中間一小段，常常左、右跳錯邊。各班回去利用時間多練習，運動會那天，才能拿出最好的表現。我聽了，知道是自己沒跳好，心裡有些發愁。中間那段動作太快，我經常左右不分，害得後面整排同學都跳錯。運動會就快到了，這下該怎麼辦？\n回到教室，走到座位前，我的桌上竟然有張紙條，寫著：李文貴：第二節下課後，到司令臺來。請不要忘記！班長留 十月十二日。班長有事找我，直接說就好，為什麼這麼神祕？下課後，我懷著不安的心情走到司令臺，發現我們那排同學都來了，原來他們也都收到紙條。班長手裡有好多條絲帶，她說：請把絲帶綁在右手，只要記得有絲帶是右手，沒絲帶是左手，這樣是不是就簡單多了？\n原來是要練大會操，我鬆了一口氣，旁邊的同學也說，他們會幫忙喊「絲帶」、「沒絲帶」，多練幾次，必定沒問題。練習幾次後，我們果然都跳對了。我有些不好意思的說：「只有我們這一排的人綁絲帶，從臺上看一定很奇怪！\n不奇怪！班上同學通通跑來了，他們的手上也都被著絲帶，笑著說：李文貴，你看我們這樣好不好看？全班同學又在操場練了一次大會操。藍天下，我們的絲帶飛舞，有大家的陪伴，真好！`,
+                zhuyin_codes: `ㄕˊ ㄩㄝˋ ㄊㄞˋ ㄧㄤˊ ㄍㄠ ㄍㄠ ㄍㄨㄚˋ ㄨㄛˇ ㄇㄣ˙ ㄗㄞˋ ㄓㄠˋ ㄏㄨㄟˋ ㄕˊ ㄐㄧㄢ ㄌㄧㄢˋ ㄒㄧˊ ㄉㄚˋ ㄏㄨㄟˋ ㄘㄠ ㄉㄚˋ ㄐㄧㄚ ㄉㄡ ㄏㄣˇ ㄋㄨˇ ㄌㄧˋ ㄊㄧㄠˋ ㄉㄜ˙ ㄇㄢˇ ㄕㄣ ㄏㄢˋ ㄓㄨㄥ ㄩˊ ㄗㄨㄥˇ ㄓˇ ㄉㄠˇ ㄉㄜ˙ ㄏㄨㄤˊ ㄌㄠˇ ㄕ ㄗㄞˋ ㄊㄞˊ ㄕㄤˋ ㄕㄨㄛ ㄒㄧㄠˇ ㄆㄥˊ ㄧㄡˇ ㄉㄚˋ ㄅㄨˋ ㄈㄣˋ ㄉㄡ ㄊㄧㄠˋ ㄉㄜ˙ ㄏㄣˇ ㄏㄠˇ ㄓˇ ㄧㄡˇ ㄓㄨㄥ ㄐㄧㄢ ㄧˋ ㄒㄧㄠˇ ㄉㄨㄢˋ ㄔㄤˊ ㄔㄤˊ ㄗㄨㄛˇ ㄧㄡˋ ㄊㄧㄠˋ ㄘㄨㄛˋ ㄅㄧㄢ ㄍㄜˋ ㄅㄢ ㄏㄨㄟˊ ㄑㄩˋ ㄌㄧˋ ㄩㄥˋ ㄕˊ ㄐㄧㄢ ㄉㄨㄛ ㄌㄧㄢˋ ㄒㄧˊ ㄩㄣˋ ㄉㄨㄥˋ ㄏㄨㄟˋ ㄋㄚˋ ㄊㄧㄢ ㄘㄞˊ ㄋㄥˊ ㄋㄚˊ ㄔㄨ ㄗㄨㄟˋ ㄏㄠˇ ㄉㄜ˙ ㄅㄧㄠˇ ㄒㄧㄢˋ ㄨㄛˇ ㄊㄧㄥ ㄌㄜ˙ ㄓ ㄉㄠˋ ㄕˋ ㄗˋ ㄐㄧˇ ㄇㄟˊ ㄊㄧㄠˋ ㄏㄠˇ ㄒㄧㄣ ㄌㄧˇ ㄧㄡˇ ㄒㄧㄝ ㄈㄚ ㄔㄡˊ ㄓㄨㄥ ㄐㄧㄢ ㄋㄚˋ ㄉㄨㄢˋ ㄉㄨㄥˋ ㄗㄨㄛˋ ㄊㄞˋ ㄎㄨㄞˋ ㄨㄛˇ ㄐㄧㄥ ㄔㄤˊ ㄗㄨㄛˇ ㄧㄡˋ ㄅㄨˋ ㄈㄣ ㄏㄞˋ ㄉㄜ˙ ㄏㄡˋ ㄇㄧㄢˋ ㄓㄥˇ ㄆㄞˊ ㄊㄨㄥˊ ㄒㄩㄝˊ ㄉㄡ ㄊㄧㄠˋ ㄘㄨㄛˋ ㄩㄣˋ ㄉㄨㄥˋ ㄏㄨㄟˋ ㄐㄧㄡˋ ㄎㄨㄞˋ ㄉㄠˋ ㄌㄜ˙ ㄓㄜˋ ㄒㄧㄚˋ ㄍㄞ ㄗㄣˇ ㄇㄜ˙ ㄅㄢˋ ㄏㄨㄟˊ ㄉㄠˋ ㄐㄧㄠˋ ㄕˋ ㄗㄡˇ ㄉㄠˋ ㄗㄨㄛˋ ㄨㄟˋ ㄑㄧㄢˊ ㄨㄛˇ ㄉㄜ˙ ㄓㄨㄛ ㄕㄤˋ ㄐㄧㄥˋ ㄖㄢˊ ㄧㄡˇ ㄓㄤ ㄓˇ ㄊㄧㄠˊ ㄒㄧㄝˇ ㄓㄜ˙ ㄌㄧˇ ㄨㄣˊ ㄍㄨㄟˋ ㄉㄧˋ ㄦˋ ㄐㄧㄝˊ ㄒㄧㄚˋ ㄎㄜˋ ㄏㄡˋ ㄉㄠˋ ㄙ ㄌㄧㄥˋ ㄊㄞˊ ㄌㄞˊ ㄑㄧㄥˇ ㄅㄨˊ ㄧㄠˋ ㄨㄤˋ ㄐㄧˋ ㄅㄢ ㄓㄤˇ ㄌㄧㄡˊ ㄕˊ ㄩㄝˋ ㄕˊ ㄦˋ ㄖˋ ㄅㄢ ㄓㄤˇ ㄧㄡˇ ㄕˋ ㄓㄠˇ ㄨㄛˇ ㄓˊ ㄐㄧㄝ ㄕㄨㄛ ㄐㄧㄡˋ ㄏㄠˇ ㄨㄟˋ ㄕㄣˊ ㄇㄜ˙ ㄓㄜˋ ㄇㄜ˙ ㄕㄣˊ ㄇㄧˋ ㄒㄧㄚˋ ㄎㄜˋ ㄏㄡˋ ㄨㄛˇ ㄏㄨㄞˊ ㄓㄜ˙ ㄅㄨˋ ㄢ ㄉㄜ˙ ㄒㄧㄣ ㄑㄧㄥˊ ㄗㄡˇ ㄉㄠˋ ㄙ ㄌㄧㄥˋ ㄊㄞˊ ㄈㄚ ㄒㄧㄢˋ ㄨㄛˇ ㄇㄣ˙ ㄋㄚˋ ㄆㄞˊ ㄊㄨㄥˊ ㄒㄩㄝˊ ㄉㄡ ㄌㄞˊ ㄌㄜ˙ ㄩㄢˊ ㄌㄞˊ ㄊㄚ ㄇㄣ˙ ㄧㄝˇ ㄉㄡ ㄕㄡ ㄉㄠˋ ㄓˇ ㄊㄧㄠˊ ㄅㄢ ㄓㄤˇ ㄕㄡˇ ㄌㄧˇ ㄧㄡˇ ㄏㄠˇ ㄉㄨㄛ ㄊㄧㄠˊ ㄙ ㄉㄞˋ ㄊㄚ ㄕㄨㄛ ㄑㄧㄥˇ ㄅㄚˇ ㄙ ㄉㄞˋ ㄅㄤˇ ㄗㄞˋ ㄧㄡˋ ㄕㄡˇ ㄓˇ ㄧㄠˋ ㄐㄧˋ ㄉㄜ˙ ㄧㄡˇ ㄙ ㄉㄞˋ ㄕˋ ㄧㄡˋ ㄕㄡˇ ㄇㄟˊ ㄙ ㄉㄞˋ ㄕˋ ㄗㄨㄛˇ ㄕㄡˇ ㄓㄜˋ ㄧㄤˋ ㄕˋ ㄅㄨˊ ㄕˋ ㄐㄧㄡˋ ㄐㄧㄢˇ ㄉㄢ ㄉㄨㄛ ㄌㄜ˙ ㄩㄢˊ ㄌㄞˊ ㄕˋ ㄧㄠˋ ㄌㄧㄢˋ ㄉㄚˋ ㄏㄨㄟˋ ㄘㄠ ㄨㄛˇ ㄙㄨㄥ ㄌㄜ˙ ㄧˋ ㄎㄡˇ ㄑㄧˋ ㄆㄤˊ ㄅㄧㄢ ㄉㄜ˙ ㄊㄨㄥˊ ㄒㄩㄝˊ ㄧㄝˇ ㄕㄨㄛ ㄊㄚ ㄇㄣ˙ ㄏㄨㄟˋ ㄅㄤ ㄇㄤˊ ㄏㄢˇ ㄙ ㄉㄞˋ ㄇㄟˊ ㄙ ㄉㄞˋ ㄉㄨㄛ ㄌㄧㄢˋ ㄐㄧˇ ㄘˋ ㄅㄧˋ ㄉㄧㄥˋ ㄇㄟˊ ㄨㄣˋ ㄊㄧˊ ㄌㄧㄢˋ ㄒㄧˊ ㄐㄧˇ ㄘˋ ㄏㄡˋ ㄨㄛˇ ㄇㄣ˙ ㄍㄨㄛˇ ㄖㄢˊ ㄉㄡ ㄊㄧㄠˋ ㄉㄨㄟˋ ㄌㄜ˙ ㄨㄛˇ ㄧㄡˇ ㄒㄧㄝ ㄅㄨˋ ㄏㄠˇ ㄧˋ ㄙ ㄉㄜ˙ ㄕㄨㄛ ㄓˇ ㄧㄡˇ ㄨㄛˇ ㄇㄣ˙ ㄓㄜˋ ㄧˋ ㄆㄞˊ ㄉㄜ˙ ㄖㄣˊ ㄅㄤˇ ㄙ ㄉㄞˋ ㄘㄨㄥˊ ㄊㄞˊ ㄕㄤˋ ㄎㄢˋ ㄧˊ ㄉㄧㄥˋ ㄏㄣˇ ㄑㄧˊ ㄍㄨㄞˋ ㄅㄨˋ ㄑㄧˊ ㄍㄨㄞˋ ㄅㄢ ㄕㄤˋ ㄊㄨㄥˊ ㄒㄩㄝˊ ㄊㄨㄥ ㄊㄨㄥ ㄆㄠˇ ㄌㄞˊ ㄌㄜ˙ ㄊㄚ ㄇㄣ˙ ㄉㄜ˙ ㄕㄡˇ ㄕㄤˋ ㄧㄝˇ ㄉㄡ ㄅㄤˇ ㄓㄜ˙ ㄙ ㄉㄞˋ ㄒㄧㄠˋ ㄓㄜ˙ ㄕㄨㄛ ㄌㄧˇ ㄨㄣˊ ㄍㄨㄟˋ ㄋㄧˇ ㄎㄢˋ ㄨㄛˇ ㄇㄣ˙ ㄓㄜˋ ㄧㄤˋ ㄏㄠˇ ㄅㄨˋ ㄏㄠˇ ㄎㄢˋ ㄑㄩㄢˊ ㄅㄢ ㄊㄨㄥˊ ㄒㄩㄝˊ ㄧㄡˋ ㄗㄞˋ ㄘㄠ ㄔㄤˇ ㄌㄧㄢˋ ㄌㄜ˙ ㄧˊ ㄘˋ ㄉㄚˋ ㄏㄨㄟˋ ㄘㄠ ㄌㄢˊ ㄊㄧㄢ ㄒㄧㄚˋ ㄨㄛˇ ㄇㄣ˙ ㄉㄜ˙ ㄙ ㄉㄞˋ ㄈㄟ ㄨˇ ㄧㄡˇ ㄉㄚˋ ㄐㄧㄚ ㄉㄜ˙ ㄆㄟˊ ㄅㄢˋ ㄓㄣ ㄏㄠˇ`
+            },
+            L06: {
+                text: `小女生來我家好幾年了，牠非常喜歡我。我上洗手間，牠會喵喵叫；我關門洗澡，牠就叫得更大聲。只要我在家，牠都會緊緊的跟在我身邊。\n每當我做完事情，對著空中大叫「小女生」，哪怕正在角落睡得香甜，牠也會奮力睜開眼睛，慢慢走到我身旁。心情好的時候，牠會邊走邊回應，一聲一聲，牠喵一下，一唱一和，高高低低，輕重不同；心情不好的時候，牠會安安靜靜的走來，用雪亮的大眼睛，不高興的看著我，像是在說：「到底什麼事啊？」\n平時，牠喜歡四腳朝天的躺在沙發上，毛茸茸的肚子，看起來像蓋上了一條白色小被子。這時候，我會過去摸摸牠柔細的毛，揉揉牠又圓又胖的肚子。牠半睜著眼睛，輕搖著尾巴，一副很享受的樣子。牠更喜歡把前腳放在我的大腿上，輕輕的喵個不停，像個可愛的小孩，陪伴我和家人說話。我們講，牠也講，一家人七嘴八舌講整晚的話，十分熱鬧。\n小女生也是我們家重要的「膠水」，牠把一家人緊緊的黏在一起。關於「小女生」的故事，三天三夜也說不完，因為，牠是一隻全世界最可愛的貓。`,
+                zhuyin_codes: `ㄒㄧㄠˇ ㄋㄩˇ ㄕㄥ ㄌㄞˊ ㄨㄛˇ ㄐㄧㄚ ㄏㄠˇ ㄐㄧˇ ㄋㄧㄢˊ ㄌㄜ˙ ㄊㄚ ㄈㄟ ㄔㄤˊ ㄒㄧˇ ㄏㄨㄢ ㄨㄛˇ ㄨㄛˇ ㄕㄤˋ ㄒㄧˇ ㄕㄡˇ ㄐㄧㄢ ㄊㄚ ㄏㄨㄟˋ ㄇㄧㄠ ㄇㄧㄠ ㄐㄧㄠˋ ㄨㄛˇ ㄍㄨㄢ ㄇㄣˊ ㄒㄧˇ ㄗㄠˇ ㄊㄚ ㄐㄧㄡˋ ㄐㄧㄠˋ ㄉㄜ˙ ㄍㄥˋ ㄉㄚˋ ㄕㄥ ㄓˇ ㄧㄠˋ ㄨㄛˇ ㄗㄞˋ ㄐㄧㄚ ㄊㄚ ㄉㄡ ㄏㄨㄟˋ ㄐㄧㄣˇ ㄐㄧㄣˇ ㄉㄜ˙ ㄍㄣ ㄗㄞˋ ㄨㄛˇ ㄕㄣ ㄅㄧㄢ ㄇㄟˇ ㄉㄤ ㄨㄛˇ ㄗㄨㄛˋ ㄨㄢˊ ㄕˋ ㄑㄧㄥˊ ㄉㄨㄟˋ ㄓㄜ˙ ㄎㄨㄥ ㄓㄨㄥ ㄉㄚˋ ㄐㄧㄠˋ ㄒㄧㄠˇ ㄋㄩˇ ㄕㄥ ㄋㄚˇ ㄆㄚˋ ㄓㄥˋ ㄗㄞˋ ㄐㄧㄠˇ ㄌㄨㄛˋ ㄕㄨㄟˋ ㄉㄜ˙ ㄒㄧㄤ ㄊㄧㄢˊ ㄊㄚ ㄧㄝˇ ㄏㄨㄟˋ ㄈㄣˋ ㄌㄧˋ ㄓㄥ ㄎㄞ ㄧㄢˇ ㄐㄧㄥ ㄇㄢˋ ㄇㄢˋ ㄗㄡˇ ㄉㄠˋ ㄨㄛˇ ㄕㄣ ㄆㄤˊ ㄒㄧㄣ ㄑㄧㄥˊ ㄏㄠˇ ㄉㄜ˙ ㄕˊ ㄏㄡˋ ㄊㄚ ㄏㄨㄟˋ ㄅㄧㄢ ㄗㄡˇ ㄅㄧㄢ ㄏㄨㄟˊ ㄧㄥˋ ㄧˋ ㄕㄥ ㄧˋ ㄕㄥ ㄊㄚ ㄇㄧㄠ ㄧˊ ㄒㄧㄚˋ ㄧˊ ㄔㄤˋ ㄧˋ ㄏㄜˋ ㄍㄠ ㄍㄠ ㄉㄧ ㄉㄧ ㄑㄧㄥ ㄓㄨㄥˋ ㄅㄨˋ ㄊㄨㄥˊ ㄒㄧㄣ ㄑㄧㄥˊ ㄅㄨˋ ㄏㄠˇ ㄉㄜ˙ ㄕˊ ㄏㄡˋ ㄊㄚ ㄏㄨㄟˋ ㄢ ㄢ ㄐㄧㄥˋ ㄐㄧㄥˋ ㄉㄜ˙ ㄗㄡˇ ㄌㄞˊ ㄩㄥˋ ㄒㄩㄝˇ ㄌㄧㄤˋ ㄉㄜ˙ ㄉㄚˋ ㄧㄢˇ ㄐㄧㄥ ㄅㄨˋ ㄍㄠ ㄒㄧㄥˋ ㄉㄜ˙ ㄎㄢˋ ㄓㄜ˙ ㄨㄛˇ ㄒㄧㄤˋ ㄕˋ ㄗㄞˋ ㄕㄨㄛ ㄉㄠˋ ㄉㄧˇ ㄕㄣˊ ㄇㄜ˙ ㄕˋ ㄚ˙ ㄆㄧㄥˊ ㄕˊ ㄊㄚ ㄒㄧˇ ㄏㄨㄢ ㄙˋ ㄐㄧㄠˇ ㄔㄠˊ ㄊㄧㄢ ㄉㄜ˙ ㄊㄤˇ ㄗㄞˋ ㄕㄚ ㄈㄚ ㄕㄤˋ ㄇㄠˊ ㄖㄨㄥˊ ㄖㄨㄥˊ ㄉㄜ˙ ㄉㄨˋ ㄗ˙ ㄎㄢˋ ㄑㄧˇ ㄌㄞˊ ㄒㄧㄤˋ ㄍㄞˋ ㄕㄤˋ ㄌㄜ˙ ㄧˋ ㄊㄧㄠˊ ㄅㄞˊ ㄙㄜˋ ㄒㄧㄠˇ ㄅㄟˋ ㄗ˙ ㄓㄜˋ ㄕˊ ㄏㄡˋ ㄨㄛˇ ㄏㄨㄟˋ ㄍㄨㄛˋ ㄑㄩˋ ㄇㄛ ㄇㄛ˙ ㄊㄚ ㄖㄡˊ ㄒㄧˋ ㄉㄜ˙ ㄇㄠˊ ㄖㄡˊ ㄖㄡˊ ㄊㄚ ㄧㄡˋ ㄩㄢˊ ㄧㄡˋ ㄆㄤˋ ㄉㄜ˙ ㄉㄨˋ ㄗ˙ ㄊㄚ ㄅㄢˋ ㄓㄥ ㄓㄜ˙ ㄧㄢˇ ㄐㄧㄥ ㄑㄧㄥ ㄧㄠˊ ㄓㄜ˙ ㄨㄟˇ ㄅㄚ˙ ㄧˊ ㄈㄨˋ ㄏㄣˇ ㄒㄧㄤˇ ㄕㄡˋ ㄉㄜ˙ ㄧㄤˋ ㄗ˙ ㄊㄚ ㄍㄥˋ ㄒㄧˇ ㄏㄨㄢ ㄅㄚˇ ㄑㄧㄢˊ ㄐㄧㄠˇ ㄈㄤˋ ㄗㄞˋ ㄨㄛˇ ㄉㄜ˙ ㄉㄚˋ ㄊㄨㄟˇ ㄕㄤˋ ㄑㄧㄥ ㄑㄧㄥ ㄉㄜ˙ ㄇㄧㄠ ㄍㄜ˙ ㄅㄨˋ ㄊㄧㄥˊ ㄒㄧㄤˋ ㄍㄜ˙ ㄎㄜˇ ㄞˋ ㄉㄜ˙ ㄒㄧㄠˇ ㄏㄞˊ ㄆㄟˊ ㄅㄢˋ ㄨㄛˇ ㄏㄢˋ ㄐㄧㄚ ㄖㄣˊ ㄕㄨㄛ ㄏㄨㄚˋ ㄨㄛˇ ㄇㄣ˙ ㄐㄧㄤˇ ㄊㄚ ㄧㄝˇ ㄐㄧㄤˇ ㄧˋ ㄐㄧㄚ ㄖㄣˊ ㄑㄧ ㄗㄨㄟˇ ㄅㄚ ㄕㄜˊ ㄐㄧㄤˇ ㄓㄥˇ ㄨㄢˇ ㄉㄜ˙ ㄏㄨㄚˋ ㄕˊ ㄈㄣ ㄖㄜˋ ㄋㄠˋ ㄒㄧㄠˇ ㄋㄩˇ ㄕㄥ ㄧㄝˇ ㄕˋ ㄨㄛˇ ㄇㄣ˙ ㄐㄧㄚ ㄓㄨㄥˋ ㄧㄠˋ ㄉㄜ˙ ㄐㄧㄠ ㄕㄨㄟˇ ㄊㄚ ㄅㄚˇ ㄧˋ ㄐㄧㄚ ㄖㄣˊ ㄐㄧㄣˇ ㄐㄧㄣˇ ㄉㄜ˙ ㄋㄧㄢˊ ㄗㄞˋ ㄧˋ ㄑㄧˇ ㄍㄨㄢ ㄩˊ ㄒㄧㄠˇ ㄋㄩˇ ㄕㄥ ㄉㄜ˙ ㄍㄨˋ ㄕˋ ㄙㄢ ㄊㄧㄢ ㄙㄢ ㄧㄝˋ ㄧㄝˇ ㄕㄨㄛ ㄅㄨˋ ㄨㄢˊ ㄧㄣ ㄨㄟˋ ㄊㄚ ㄕˋ ㄧˋ ㄓ ㄑㄩㄢˊ ㄕˋ ㄐㄧㄝˋ ㄗㄨㄟˋ ㄎㄜˇ ㄞˋ ㄉㄜ˙ ㄇㄠ`
+            },
+            L07: {
+                text: `長長的老街，\n有傳統餅店，\n有百年商行。\n淡水的現在，\n淡水的過往，\n都在這條古老的街上。\n阿婆的鐵蛋，\n又硬又圓，\n又黑又亮。\n像那古早的故事一樣，\n愈嚼愈香。\n蒼老的紅毛城，\n站在山坡上。\n靜靜的看著河口，\n靜靜的望著海洋，\n像在回憶以前的時光。\n紅紅的夕陽，\n照在淡水河上。\n小船哪！\n你輕輕的搖盪，\n是在網魚，\n還是在網那金黃色的波浪？`,
+                zhuyin_codes: `ㄔㄤˊ ㄔㄤˊ ㄉㄜ˙ ㄌㄠˇ ㄐㄧㄝ ㄧㄡˇ ㄔㄨㄢˊ ㄊㄨㄥˇ ㄅㄧㄥˇ ㄉㄧㄢˋ ㄧㄡˇ ㄅㄞˇ ㄋㄧㄢˊ ㄕㄤ ㄏㄤˊ ㄉㄢˋ ㄕㄨㄟˇ ㄉㄜ˙ ㄒㄧㄢˋ ㄗㄞˋ ㄉㄢˋ ㄕㄨㄟˇ ㄉㄜ˙ ㄍㄨㄛˋ ㄨㄤˇ ㄉㄡ ㄗㄞˋ ㄓㄜˋ ㄊㄧㄠˊ ㄍㄨˇ ㄌㄠˇ ㄉㄜ˙ ㄐㄧㄝ ㄕㄤˋ ㄚ ㄆㄛˊ ㄉㄜ˙ ㄊㄧㄝˇ ㄉㄢˋ ㄧㄡˋ ㄧㄥˋ ㄧㄡˋ ㄩㄢˊ ㄧㄡˋ ㄏㄟ ㄧㄡˋ ㄌㄧㄤˋ ㄒㄧㄤˋ ㄋㄚˋ ㄍㄨˇ ㄗㄠˇ ㄉㄜ˙ ㄍㄨˋ ㄕˋ ㄧˊ ㄧㄤˋ ㄩˋ ㄐㄩㄝˊ ㄩˋ ㄒㄧㄤ ㄘㄤ ㄌㄠˇ ㄉㄜ˙ ㄏㄨㄥˊ ㄇㄠˊ ㄔㄥˊ ㄓㄢˋ ㄗㄞˋ ㄕㄢ ㄆㄛ ㄕㄤˋ ㄐㄧㄥˋ ㄐㄧㄥˋ ㄉㄜ˙ ㄎㄢˋ ㄓㄜ˙ ㄏㄜˊ ㄎㄡˇ ㄐㄧㄥˋ ㄐㄧㄥˋ ㄉㄜ˙ ㄨㄤˋ ㄓㄜ˙ ㄏㄞˇ ㄧㄤˊ ㄒㄧㄤˋ ㄗㄞˋ ㄏㄨㄟˊ ㄧˋ ㄧˇ ㄑㄧㄢˊ ㄉㄜ˙ ㄕˊ ㄍㄨㄤ ㄏㄨㄥˊ ㄏㄨㄥˊ ㄉㄜ˙ ㄒㄧˋ ㄧㄤˊ ㄓㄠˋ ㄗㄞˋ ㄉㄢˋ ㄕㄨㄟˇ ㄏㄜˊ ㄕㄤˋ ㄒㄧㄠˇ ㄔㄨㄢˊ ㄋㄚ˙ ㄋㄧˇ ㄑㄧㄥ ㄑㄧㄥ ㄉㄜ˙ ㄧㄠˊ ㄉㄤˋ ㄕˋ ㄗㄞˋ ㄨㄤˇ ㄩˊ ㄏㄞˊ ㄕˋ ㄗㄞˋ ㄨㄤˇ ㄋㄚˋ ㄐㄧㄣ ㄏㄨㄤˊ ㄙㄜˋ ㄉㄜ˙ ㄅㄛ ㄌㄤˋ`
+            },
+            L08: {
+                text: `今天是學校的戶外教育日，我們參觀的地點是位於臺南的安平古堡。坐了好久的車，終於來到我們期待已久的地方。我們先參觀博物館，裡面放著許多文物：有過往的史料，有古城的模型，還有地圖和照片。看了這些我才知道，這裡的古城牆最早是荷蘭人蓋的。後來，鄭成功打敗荷蘭人，駐守在這裡，安平這個軍事要地就更有名了。\n從博物館出來後，我們來到了古炮平臺，那裡有一排古炮，炮口對著遠方，像在想念以前風光的日子，又像在守護著安平古堡。它們是勇敢的士兵，經過這麼長的日子，始終堅守著這片土地。我們往上走，附近還有一座瞭望臺，紅紅的屋頂，白色的牆，又高又大，是安平古堡的地標。走上去，站在最高處往四面遠望，可以看到美麗的風光。\n接近中午的時候，我們走到旁邊的公園，裡頭有一面老城牆，上面長滿樹根。雖然經過三百多年，老城牆還是很堅固。它安靜的站在公園裡，好像在說著過往的故事。這次的參觀，我看到寶貴的文物，也認識了安平古堡的故事，收穫真的好多！`,
+                zhuyin_codes: `ㄐㄧㄣ ㄊㄧㄢ ㄕˋ ㄒㄩㄝˊ ㄒㄧㄠˋ ㄉㄜ˙ ㄏㄨˋ ㄨㄞˋ ㄐㄧㄠˋ ㄩˋ ㄖˋ ㄨㄛˇ ㄇㄣ˙ ㄘㄢ ㄍㄨㄢ ㄉㄜ˙ ㄉㄧˋ ㄉㄧㄢˇ ㄕˋ ㄨㄟˋ ㄩˊ ㄊㄞˊ ㄋㄢˊ ㄉㄜ˙ ㄢ ㄆㄧㄥˊ ㄍㄨˇ ㄅㄠˇ ㄗㄨㄛˋ ㄌㄜ˙ ㄏㄠˇ ㄐㄧㄡˇ ㄉㄜ˙ ㄔㄜ ㄓㄨㄥ ㄩˊ ㄌㄞˊ ㄉㄠˋ ㄨㄛˇ ㄇㄣ˙ ㄑㄧˊ ㄉㄞˋ ㄧˇ ㄐㄧㄡˇ ㄉㄜ˙ ㄉㄧˋ ㄈㄤ ㄨㄛˇ ㄇㄣ˙ ㄒㄧㄢ ㄘㄢ ㄍㄨㄢ ㄅㄛˊ ㄨˋ ㄍㄨㄢˇ ㄌㄧˇ ㄇㄧㄢˋ ㄈㄤˋ ㄓㄜ˙ ㄒㄩˇ ㄉㄨㄛ ㄨㄣˊ ㄨˋ ㄧㄡˇ ㄍㄨㄛˋ ㄨㄤˇ ㄉㄜ˙ ㄕˇ ㄌㄧㄠˋ ㄧㄡˇ ㄍㄨˇ ㄔㄥˊ ㄉㄜ˙ ㄇㄛˊ ㄒㄧㄥˊ ㄏㄞˊ ㄧㄡˇ ㄉㄧˋ ㄊㄨˊ ㄏㄢˋ ㄓㄠˋ ㄆㄧㄢˋ ㄎㄢˋ ㄌㄜ˙ ㄓㄜè ㄒㄧㄝ ㄨㄛˇ ㄘㄞˊ ㄓ ㄉㄠˋ ㄓㄜˋ ㄌㄧˇ ㄉㄜ˙ ㄍㄨˇ ㄔㄥˊ ㄑㄧㄤˊ ㄗㄨㄟˋ ㄗㄠˇ ㄕˋ ㄏㄜˊ ㄌㄢˊ ㄖㄣˊ ㄍㄞˋ ㄉㄜ˙ ㄏㄡˋ ㄌㄞˊ ㄓㄥˋ ㄔㄥˊ ㄍㄨㄥ ㄉㄚˇ ㄅㄞˋ ㄏㄜˊ ㄌㄢˊ ㄖㄣˊ ㄓㄨˋ ㄕㄡˇ ㄗㄞˋ ㄓㄜˋ ㄌㄧˇ ㄢ ㄆㄧㄥˊ ㄓㄜˋ ㄍㄜ˙ ㄐㄩㄣ ㄕˋ ㄧㄠˋ ㄉㄧˋ ㄐㄧㄡˋ ㄍㄥˋ ㄧㄡˇ ㄇㄧㄥˊ ㄌㄜ˙ ㄘㄨㄥˊ ㄅㄛˊ ㄨˋ ㄍㄨㄢˇ ㄔㄨ ㄌㄞˊ ㄏㄡˋ ㄨㄛˇ ㄇㄣ˙ ㄌㄞˊ ㄉㄠˋ ㄌㄜ˙ ㄍㄨˇ ㄆㄠˋ ㄆㄧㄥˊ ㄊㄞˊ ㄋㄚˋ ㄌㄧˇ ㄧㄡˇ ㄧˋ ㄆㄞˊ ㄍㄨˇ ㄆㄠˋ ㄆㄠˋ ㄎㄡˇ ㄉㄨㄟˋ ㄓㄜ˙ ㄩㄢˇ ㄈㄤ ㄒㄧㄤˋ ㄗㄞˋ ㄒㄧㄤˇ ㄋㄧㄢˋ ㄧˇ ㄑㄧㄢˊ ㄈㄥ ㄍㄨㄤ ㄉㄜ˙ ㄖˋ ㄗ˙ ㄧㄡˋ ㄒㄧㄤˋ ㄗㄞˋ ㄕㄡˇ ㄏㄨˋ ㄓㄜ˙ ㄢ ㄆㄧㄥˊ ㄍㄨˇ ㄅㄠˇ ㄊㄚ ㄇㄣ˙ ㄕˋ ㄩㄥˇ ㄍㄢˇ ㄉㄜ˙ ㄕˋ ㄅㄧㄥ ㄐㄧㄥ ㄍㄨㄛˋ ㄓㄜˋ ㄇㄜ˙ ㄔㄤˊ ㄉㄜ˙ ㄖˋ ㄗ˙ ㄕˇ ㄓㄨㄥ ㄐㄧㄢ ㄕㄡˇ ㄓㄜ˙ ㄓㄜˋ ㄆㄧㄢˋ ㄊㄨˇ ㄉㄧˋ ㄨㄛˇ ㄇㄣ˙ ㄨㄤˇ ㄕㄤˋ ㄗㄡˇ ㄈㄨˋ ㄐㄧㄣˋ ㄏㄞˊ ㄧㄡˇ ㄧˊ ㄗㄨㄛˋ ㄌㄧㄠˋ ㄨㄤˋ ㄊㄞˊ ㄏㄨㄥˊ ㄏㄨㄥˊ ㄉㄜ˙ ㄨ ㄉㄧㄥˇ ㄅㄞˊ ㄙㄜˋ ㄉㄜ˙ ㄑㄧㄤˊ ㄧㄡˋ ㄍㄠ ㄧㄡˋ ㄉㄚˋ ㄕˋ ㄢ ㄆㄧㄥˊ ㄍㄨˇ ㄅㄠˇ ㄉㄜ˙ ㄉㄧˋ ㄅㄧㄠ ㄗㄡˇ ㄕㄤˋ ㄑㄩˋ ㄓㄢˋ ㄗㄞˋ ㄗㄨㄟˋ ㄍㄠ ㄔㄨˋ ㄨㄤˇ ㄙˋ ㄇㄧㄢˋ ㄩㄢˇ ㄨㄤˋ ㄎㄜˇ ㄧˇ ㄎㄢˋ ㄉㄠˋ ㄇㄟˇ ㄌㄧˋ ㄉㄜ˙ ㄈㄥ ㄍㄨㄤ ㄐㄧㄝ ㄐㄧㄣˋ ㄓㄨㄥ ㄨˇ ㄉㄜ˙ ㄕˊ ㄏㄡˋ ㄨㄛˇ ㄇㄣ˙ ㄗㄡˇ ㄉㄠˋ ㄆㄤˊ ㄅㄧㄢ ㄉㄜ˙ ㄍㄨㄥ ㄩㄢˊ ㄌㄧˇ ㄊㄡˊ ㄧㄡˇ ㄧˊ ㄇㄧㄢˋ ㄌㄠˇ ㄔㄥˊ ㄑㄧㄤˊ ㄕㄤˋ ㄇㄧㄢˋ ㄓㄤˇ ㄇㄢˇ ㄕㄨˋ ㄍㄣ ㄙㄨㄟ ㄖㄢˊ ㄐㄧㄥ ㄍㄨㄛˋ ㄙㄢ ㄅㄞˇ ㄉㄨㄛ ㄋㄧㄢˊ ㄌㄠˇ ㄔㄥˊ ㄑㄧㄤˊ ㄏㄞˊ ㄕˋ ㄏㄣˇ ㄐㄧㄢ ㄍㄨˋ ㄊㄚ ㄢ ㄐㄧㄥˋ ㄉㄜ˙ ㄓㄢˋ ㄗㄞˋ ㄍㄨㄥ ㄩㄢˊ ㄌㄧˇ ㄏㄠˇ ㄒㄧㄤˋ ㄗㄞˋ ㄕㄨㄛ ㄓㄜ˙ ㄍㄨㄛˋ ㄨㄤˇ ㄉㄜ˙ ㄍㄨˋ ㄕˋ ㄓㄜˋ ㄘˋ ㄉㄜ˙ ㄘㄢ ㄍㄨㄢ ㄨㄛˇ ㄎㄢˋ ㄉㄠˋ ㄅㄠˇ ㄍㄨㄟˋ ㄉㄜ˙ ㄨㄣˊ ㄨˋ ㄧㄝˇ ㄖㄣˋ ㄕˋ ㄌㄜ˙ ㄢ ㄆㄧㄥˊ ㄍㄨˇ ㄅㄠˇ ㄉㄜ˙ ㄍㄨˋ ㄕˋ ㄕㄡ ㄏㄨㄛˋ ㄓㄣ ㄉㄜ˙ ㄏㄠˇ ㄉㄨㄛ`
+            },
+            L09: {
+                text: `阿美族人，居住在花蓮馬太鞍溼地的，有一種特別的捕魚方式。他們不是辛苦的去找魚，而是打造一個讓魚可以安心生長的魚屋，讓魚自己住進來。這就是「巴拉告」——阿美族語所指的魚屋。\n阿美族人運用溼地地形為魚蓋魚屋。這個特別的魚屋有三層：底層是中空的大竹子，住在這裡的魚喜歡晚上出來活動；中層有許多細樹枝，因為這裡大魚進不去，所以是小魚最安全的生活空間；在最上層，放著許多水生植物或大片的葉子。\n魚屋蓋好以後，大魚就會到這裡來找食物，上層的水生植物，讓牠們不被水鳥發現。大魚沒吃完的食物會有卡在中間的細樹枝上，成為小魚、小蝦的點心；有的留在最底層，讓躲在大竹子中的魚享用。再過不久，魚屋裡的魚越來越多，阿美族人想要吃魚的時候，不用出海，也不用辛苦的釣魚，只要拿著魚網到這裡抓魚，就可以好好享用了。\n馬太鞍的「巴拉告」，讓我們看到阿美族先人的智慧。阿美族人用這種聰明的方法捕魚，也讓大自然的生態生生不息。`,
+                zhuyin_codes: `ㄚ ㄇㄟˇ ㄗㄨˊ ㄖㄣˊ ㄐㄩ ㄓㄨˋ ㄗㄞˋ ㄏㄨㄚ ㄌㄧㄢˊ ㄇㄚˇ ㄊㄞˋ ㄢ ㄕ ㄉㄧˋ ㄉㄜ˙ ㄧㄡˇ ㄧˋ ㄓㄨㄥˇ ㄊㄜˋ ㄅㄧㄝˊ ㄉㄜ˙ ㄅㄨˇ ㄩˊ ㄈㄤ ㄕˋ ㄊㄚ ㄇㄣ˙ ㄅㄨˊ ㄕˋ ㄒㄧㄣ ㄎㄨˇ ㄉㄜ˙ ㄑㄩˋ ㄓㄠˇ ㄩˊ ㄦˊ ㄕˋ ㄉㄚˇ ㄗㄠˋ ㄧˊ ㄍㄜ˙ ㄖㄤˋ ㄩˊ ㄎㄜˇ ㄧˇ ㄢ ㄒㄧㄣ ㄕㄥ ㄓㄤˇ ㄉㄜ˙ ㄩˊ ㄨ ㄖㄤˋ ㄩˊ ㄗˋ ㄐㄧˇ ㄓㄨˋ ㄐㄧㄣˋ ㄌㄞˊ ㄓㄜˋ ㄐㄧㄡˋ ㄕˋ ㄅㄚ ㄌㄚ ㄍㄠˋ ㄚ ㄇㄟˇ ㄗㄨˊ ㄩˇ ㄙㄨㄛˇ ㄓˇ ㄉㄜ˙ ㄩˊ ㄨ ㄚ ㄇㄟˇ ㄗㄨˊ ㄖㄣˊ ㄩㄣˋ ㄩㄥˋ ㄕ ㄉㄧˋ ㄉㄧˋ ㄒㄧㄥˊ ㄨㄟˋ ㄩˊ ㄍㄞˋ ㄩˊ ㄨ ㄓㄜˋ ㄍㄜ˙ ㄊㄜˋ ㄅㄧㄝˊ ㄉㄜ˙ ㄩˊ ㄨ ㄧㄡˇ ㄙㄢ ㄘㄥˊ ㄉㄧˇ ㄘㄥˊ ㄕˋ ㄓㄨㄥ ㄎㄨㄥ ㄉㄜ˙ ㄉㄚˋ ㄓㄨˊ ㄗ˙ ㄓㄨˋ ㄗㄞˋ ㄓㄜˋ ㄌㄧˇ ㄉㄜ˙ ㄩˊ ㄒㄧˇ ㄏㄨㄢ ㄨㄢˇ ㄕㄤˋ ㄔㄨ ㄌㄞˊ ㄏㄨㄛˊ ㄉㄨㄥˋ ㄓㄨㄥ ㄘㄥˊ ㄧㄡˇ ㄒㄩˇ ㄉㄨㄛ ㄒㄧˋ ㄕㄨˋ ㄓ ㄧㄣ ㄨㄟˋ ㄓㄜˋ ㄌㄧˇ ㄉㄚˋ ㄩˊ ㄐㄧㄣˋ ㄅㄨˊ ㄑㄩˋ ㄙㄨㄛˇ ㄧˇ ㄕˋ ㄒㄧㄠˇ ㄩˊ ㄗㄨㄟˋ ㄢ ㄑㄩㄢˊ ㄉㄜ˙ ㄕㄥ ㄏㄨㄛˊ ㄎㄨㄥ ㄐㄧㄢ ㄗㄞˋ ㄗㄨㄟˋ ㄕㄤˋ ㄘㄥˊ ㄈㄤˋ ㄓㄜ˙ ㄒㄩˇ ㄉㄨㄛ ㄕㄨㄟˇ ㄕㄥ ㄓˊ ㄨˋ ㄏㄨㄛˋ ㄉㄚˋ ㄆㄧㄢˋ ㄉㄜ˙ ㄧㄝˋ ㄗ˙ ㄩˊ ㄨ ㄍㄞˋ ㄏㄠˇ ㄧˇ ㄏㄡˋ ㄉㄚˋ ㄩˊ ㄐㄧㄡˋ ㄏㄨㄟˋ ㄉㄠˋ ㄓㄜˋ ㄌㄧˇ ㄌㄞˊ ㄓㄠˇ ㄕˊ ㄨˋ ㄕㄤˋ ㄘㄥˊ ㄉㄜ˙ ㄕㄨㄟˇ ㄕㄥ ㄓˊ ㄨˋ ㄖㄤˋ ㄊㄚ ㄇㄣ˙ ㄅㄨˊ ㄅㄟˋ ㄕㄨㄟˇ ㄋㄧㄠˇ ㄈㄚ ㄒㄧㄢˋ ㄉㄚˋ ㄩˊ ㄇㄟˊ ㄔ ㄨㄢˊ ㄉㄜ˙ ㄕˊ ㄨˋ ㄏㄨㄟˋ ㄧㄡˇ ㄎㄚˇ ㄗㄞˋ ㄓㄨㄥ ㄐㄧㄢ ㄉㄜ˙ ㄒㄧˋ ㄕㄨˋ ㄓ ㄕㄤˋ ㄔㄥˊ ㄨㄟˊ ㄒㄧㄠˇ ㄩˊ ㄒㄧㄠˇ ㄒㄧㄚ ㄉㄜ˙ ㄉㄧㄢˇ ㄒㄧㄣ ㄧㄡˇ ㄉㄜ˙ ㄌㄧㄡˊ ㄗㄞˋ ㄗㄨㄟˋ ㄉㄧˇ ㄘㄥˊ ㄖㄤˋ ㄉㄨㄛˇ ㄗㄞˋ ㄉㄚˋ ㄓㄨˊ ㄗ˙ ㄓㄨㄥ ㄉㄜ˙ ㄩˊ ㄒㄧㄤˇ ㄩㄥˋ ㄗㄞˋ ㄍㄨㄛˋ ㄅㄨˋ ㄐㄧㄡˇ ㄩˊ ㄨ ㄌㄧˇ ㄉㄜ˙ ㄩˊ ㄩㄝˋ ㄌㄞˊ ㄩㄝˋ ㄉㄨㄛ ㄚ ㄇㄟˇ ㄗㄨˊ ㄖㄣˊ ㄒㄧㄤˇ ㄧㄠˋ ㄔ ㄩˊ ㄉㄜ˙ ㄕˊ ㄏㄡˋ ㄅㄨˊ ㄩㄥˋ ㄔㄨ ㄏㄞˇ ㄧㄝˇ ㄅㄨˊ ㄩㄥˋ ㄒㄧㄣ ㄎㄨˇ ㄉㄜ˙ ㄉㄧㄠˋ ㄩˊ ㄓˇ ㄧㄠˋ ㄋㄚˊ ㄓㄜ˙ ㄩˊ ㄨㄤˇ ㄉㄠˋ ㄓㄜˋ ㄌㄧˇ ㄓㄨㄚ ㄩˊ ㄐㄧㄡˋ ㄎㄜˇ ㄧˇ ㄏㄠˇ ㄏㄠˇ ㄒㄧㄤˇ ㄩㄥˋ ㄌㄜ˙ ㄇㄚˇ ㄊㄞˋ ㄢ ㄉㄜ˙ ㄅㄚ ㄌㄚ ㄍㄠˋ ㄖㄤˋ ㄨㄛˇ ㄇㄣ˙ ㄎㄢˋ ㄉㄠˋ ㄚ ㄇㄟˇ ㄗㄨˊ ㄒㄧㄢ ㄖㄣˊ ㄉㄜ˙ ㄓˋ ㄏㄨㄟˋ ㄚ ㄇㄟˇ ㄗㄨˊ ㄖㄣˊ ㄩㄥˋ ㄓㄜˋ ㄓㄨㄥˇ ㄘㄨㄥ ㄇㄧㄥˊ ㄉㄜ˙ ㄈㄤ ㄈㄚˇ ㄅㄨˇ ㄩˊ ㄧㄝˇ ㄖㄤˋ ㄉㄚˋ ㄗˋ ㄖㄢˊ ㄉㄜ˙ ㄕㄥ ㄊㄞˋ ㄕㄥ ㄕㄥ ㄅㄨˋ ㄒㄧ`
+            },
+            L10: {
+                text: `萬里無雲好天氣，\n大小狐狸兩兄弟，\n坐在樹下說祕密。\n狐狸大哥進園裡，\n葡萄香氣直入鼻，\n抓呀！還差一點力，\n跳哇！加上高飛踢。\n四腳朝天就落地，\n全身滿滿都是泥，\n沒法只好就放棄，\n告訴自己別在意：\n「酸葡萄哇！酸葡萄！\n沒有什麼了不起！」\n狐狸小弟沒力氣，\n見了烏鴉心歡喜，\n肉塊就在他嘴裡，\n左思右想找妙計。\n狐狸說：\n「烏鴉呀！烏鴉呀！\n您真強壯又美麗，\n歌聲必定無人比！」\n烏鴉聽了心歡喜，\n開口一唱肉落地，\n才知不妙來不及。\n大小狐狸兩兄弟，\n祕密都在故事裡。`,
+                zhuyin_codes: `ㄨㄢˋ ㄌㄧˇ ㄨˊ ㄩㄣˊ ㄏㄠˇ ㄊㄧㄢ ㄑㄧˋ ㄉㄚˋ ㄒㄧㄠˇ ㄏㄨˊ ㄌㄧˊ ㄌㄧㄤˇ ㄒㄩㄥ ㄉㄧˋ ㄗㄨㄛˋ ㄗㄞˋ ㄕㄨˋ ㄒㄧㄚˋ ㄕㄨㄛ ㄇㄧˋ ㄇㄧˋ ㄏㄨˊ ㄌㄧˊ ㄉㄚˋ ㄍㄜ ㄐㄧㄣˋ ㄩㄢˊ ㄌㄧˇ ㄆㄨˊ ㄊㄠˊ ㄒㄧㄤ ㄑㄧˋ ㄓˊ ㄖㄨˋ ㄅㄧˊ ㄓㄨㄚ ㄧㄚ˙ ㄏㄞˊ ㄔㄚ ㄧˋ ㄉㄧㄢˇ ㄌㄧˋ ㄊㄧㄠˋ ㄨㄚ˙ ㄐㄧㄚ ㄕㄤˋ ㄍㄠ ㄈㄟ ㄊㄧ ㄙˋ ㄐㄧㄠˇ ㄔㄠˊ ㄊㄧㄢ ㄐㄧㄡˋ ㄌㄨㄛˋ ㄉㄧˋ ㄑㄩㄢˊ ㄕㄣ ㄇㄢˇ ㄇㄢˇ ㄉㄡ ㄕˋ ㄋㄧˊ ㄇㄟˊ ㄈㄚˇ ㄓˇ ㄏㄠˇ ㄐㄧㄡˋ ㄈㄤˋ ㄑㄧˋ ㄍㄠˋ ㄙㄨˋ ㄗˋ ㄐㄧˇ ㄅㄧㄝˊ ㄗㄞˋ ㄧˋ ㄙㄨㄢ ㄆㄨˊ ㄊㄠˊ ㄨㄚ˙ ㄙㄨㄢ ㄆㄨˊ ㄊㄠˊ ㄇㄟˊ ㄧㄡˇ ㄕㄣˊ ㄇㄜ˙ ㄌㄧㄠˇ ㄅㄨˋ ㄑㄧˇ ㄏㄨˊ ㄌㄧˊ ㄒㄧㄠˇ ㄉㄧˋ ㄇㄟˊ ㄌㄧˋ ㄑㄧˋ ㄐㄧㄢˋ ㄌㄜ˙ ㄨ ㄧㄚ ㄒㄧㄣ ㄏㄨㄢ ㄒㄧˇ ㄖㄡˋ ㄎㄨㄞˋ ㄐㄧㄡˋ ㄗㄞˋ ㄊㄚ ㄗㄨㄟˇ ㄌㄧˇ ㄗㄨㄛˇ ㄙ ㄧㄡˋ ㄒㄧㄤˇ ㄓㄠˇ ㄇㄧㄠˋ ㄐㄧˋ ㄏㄨˊ ㄌㄧˊ ㄕㄨㄛ ㄨ ㄧㄚ ㄧㄚ˙ ㄨ ㄧㄚ ㄧㄚ˙ ㄋㄧㄣˊ ㄓㄣ ㄑㄧㄤˊ ㄓㄨㄤˋ ㄧㄡˋ ㄇㄟˇ ㄌㄧˋ ㄍㄜ ㄕㄥ ㄅㄧˋ ㄉㄧㄥˋ ㄨˊ ㄖㄣˊ ㄅㄧˇ ㄨ ㄧㄚ ㄊㄧㄥ ㄌㄜ˙ ㄒㄧㄣ ㄏㄨㄢ ㄒㄧˇ ㄎㄞ ㄎㄡˇ ㄧˊ ㄔㄤˋ ㄖㄡˋ ㄌㄨㄛˋ ㄉㄧˋ ㄘㄞˊ ㄓ ㄅㄨˊ ㄇㄧㄠˋ ㄌㄞˊ ㄅㄨˋ ㄐㄧˊ ㄉㄚˋ ㄒㄧㄠˇ ㄏㄨˊ ㄌㄧˊ ㄌㄧㄤˇ ㄒㄩㄥ ㄉㄧˋ ㄇㄧˋ ㄇㄧˋ ㄉㄡ ㄗㄞˋ ㄍㄨˋ ㄕˋ ㄌㄧˇ`
+            },
+            L11: {
+                text: `有一個巨人，他蓋了一座大花園。春天的時候，他看著花園裡開滿美麗的花朵，聽著樹上的鳥兒唱著美妙的歌曲，心情就特別愉悅。\n有一天，巨人出遠門去拜訪朋友，過了很久還沒回來，附近的孩子就到花園裡遊玩。巨人回到家，發現孩子們在花園裡玩得很開心，他生氣的大叫：「花園是我的！你們怎麼可以跑進來呢？」於是，他築起了一道高高的牆，把花園圍起來，免得孩子們跑進來。孩子們望著高高的圍牆，心裡想：「美麗的花園為什麼被圍起來了呢？」他們進不去，只好失望的離開。\n秋天過了，冬天來了，園裡的花謝了，小鳥也飛走了。花園裡自從少了孩子的笑聲，冬天顯得特別漫長，直到第二年春天，花園裡還是冷冷清清。巨人天天盼著花園裡乾枯的樹枝，能趕快長出新芽，美麗的花兒也能快快綻放。\n有一天，巨人發現圍牆上有個小洞，孩子們正一個個從洞口鑽進花園。他們走過的地方，草綠了！跑過的地方，花開了！跳過的地方，小鳥飛來了！花園又熱鬧了起來。巨人這才恍然大悟的說：「沒有孩子們的笑聲，花園裡還有什麼快樂呢？」於是，他把圍牆拆除，讓孩子們可以自由自在的進來遊玩。孩子們來到巨人的身邊，圍著他唱著、跳著，開心極了！這時百花盛開，鳥語花香，春天隨著孩子們的笑聲，又回到花園裡來了。`,
+                zhuyin_codes: `ㄧㄡˇ ㄧˊ ㄍㄜ˙ ㄐㄩˋ ㄖㄣˊ ㄊㄚ ㄍㄞˋ ㄌㄜ˙ ㄧí ㄗㄨㄛˋ ㄉㄚˋ ㄏㄨㄚ ㄩㄢˊ ㄔㄨㄣ ㄊㄧㄢ ㄉㄜ˙ ㄕˊ ㄏㄡˋ ㄊㄚ ㄎㄢˋ ㄓㄜ˙ ㄏㄨㄚ ㄩㄢˊ ㄌㄧˇ ㄎㄞ ㄇㄢˇ ㄇㄟˇ ㄌㄧˋ ㄉㄜ˙ ㄏㄨㄚ ㄉㄨㄛˇ ㄊㄧㄥ ㄓㄜ˙ ㄕㄨˋ ㄕㄤˋ ㄉㄜ˙ ㄋㄧㄠˇ ㄦˊ ㄔㄤˋ ㄓㄜ˙ ㄇㄟˇ ㄇㄧㄠˋ ㄉㄜ˙ ㄍㄜ ㄑㄩˇ ㄒㄧㄣ ㄑㄧㄥˊ ㄐㄧㄡˋ ㄊㄜˋ ㄅㄧㄝˊ ㄩˊ ㄩㄝˋ ㄧㄡˇ ㄧˋ ㄊㄧㄢ ㄐㄩˋ ㄖㄣˊ ㄔㄨ ㄩㄢˇ ㄇㄣˊ ㄑㄩˋ ㄅㄞˋ ㄈㄤˇ ㄆㄥˊ ㄧㄡˇ ㄍㄨㄛˋ ㄌㄜ˙ ㄏㄣˇ ㄐㄧㄡˇ ㄏㄞˊ ㄇㄟˊ ㄏㄨㄟˊ ㄌㄞˊ ㄈㄨˋ ㄐㄧㄣˋ ㄉㄜ˙ ㄏㄞˊ ㄗ˙ ㄐㄧㄡˋ ㄉㄠˋ ㄏㄨㄚ ㄩㄢˊ ㄌㄧˇ ㄧㄡˊ ㄨㄢˊ ㄐㄩˋ ㄖㄣˊ ㄏㄨㄟˊ ㄉㄠˋ ㄐㄧㄚ ㄈㄚ ㄒㄧㄢˋ ㄏㄞˊ ㄗ˙ ㄇㄣ˙ ㄗㄞˋ ㄏㄨㄚ ㄩㄢˊ ㄌㄧˇ ㄨㄢˊ ㄉㄜ˙ ㄏㄣˇ ㄎㄞ ㄒㄧㄣ ㄊㄚ ㄕㄥ ㄑㄧˋ ㄉㄜ˙ ㄉㄚˋ ㄐㄧㄠˋ ㄏㄨㄚ ㄩㄢˊ ㄕˋ ㄨㄛˇ ㄉㄜ˙ ㄋㄧˇ ㄇㄣ˙ ㄗㄣˇ ㄇㄜ˙ ㄎㄜˇ ㄧˇ ㄆㄠˇ ㄐㄧㄣˋ ㄌㄞˊ ㄋㄜ˙ ㄩˊ ㄕˋ ㄊㄚ ㄓㄨˊ ㄑㄧˇ ㄌㄜ˙ ㄧí ㄉㄠˋ ㄍㄠ ㄍㄠ ㄉㄜ˙ ㄑㄧㄤˊ ㄅㄚˇ ㄏㄨㄚ ㄩㄢˊ ㄨㄟˊ ㄑㄧˇ ㄌㄞˊ ㄇㄧㄢˇ ㄉㄜ˙ ㄏㄞˊ ㄗ˙ ㄇㄣ˙ ㄆㄠˇ ㄐㄧㄣˋ ㄌㄞˊ ㄏㄞˊ ㄗ˙ ㄇㄣ˙ ㄨㄤˋ ㄓㄜ˙ ㄍㄠ ㄍㄠ ㄉㄜ˙ ㄨㄟˊ ㄑㄧㄤˊ ㄒㄧㄣ ㄌㄧˇ ㄒㄧㄤˇ ㄇㄟˇ ㄌㄧˋ ㄉㄜ˙ ㄏㄨㄚ ㄩㄢˊ ㄨㄟˋ ㄕㄣˊ ㄇㄜ˙ ㄅㄟˋ ㄨㄟˊ ㄑㄧˇ ㄌㄞˊ ㄌㄜ˙ ㄋㄜ˙ ㄊㄚ ㄇㄣ˙ ㄐㄧㄣˋ ㄅㄨˊ ㄑㄩˋ ㄓˇ ㄏㄠˇ ㄕ ㄨㄤˋ ㄉㄜ˙ ㄌㄧˊ ㄎㄞ ㄑㄧㄡ ㄊㄧㄢ ㄍㄨㄛˋ ㄌㄜ˙ ㄉㄨㄥ ㄊㄧㄢ ㄌㄞˊ ㄌㄜ˙ ㄩㄢˊ ㄌㄧˇ ㄉㄜ˙ ㄏㄨㄚ ㄒㄧㄝˋ ㄌㄜ˙ ㄒㄧㄠˇ ㄋㄧㄠˇ ㄧㄝˇ ㄈㄟ ㄗㄡˇ ㄌㄜ˙ ㄏㄨㄚ ㄩㄢˊ ㄌㄧˇ ㄗˋ ㄘㄨㄥˊ ㄕㄠˇ ㄌㄜ˙ ㄏㄞˊ ㄗ˙ ㄉㄜ˙ ㄒㄧㄠˋ ㄕㄥ ㄉㄨㄥ ㄊㄧㄢ ㄒㄧㄢˇ ㄉㄜ˙ ㄊㄜˋ ㄅㄧㄝˊ ㄇㄢˋ ㄔㄤˊ ㄓˊ ㄉㄠˋ ㄉㄧˋ ㄦˋ ㄋㄧㄢˊ ㄔㄨㄣ ㄊㄧㄢ ㄏㄨㄚ ㄩㄢˊ ㄌㄧˇ ㄏㄞˊ ㄕˋ ㄌㄥˇ ㄌㄥˇ ㄑㄧㄥ ㄑㄧㄥ ㄐㄩˋ ㄖㄣˊ ㄊㄧㄢ ㄊㄧㄢ ㄆㄢˋ ㄓㄜ˙ ㄏㄨㄚ ㄩㄢˊ ㄌㄧˇ ㄍㄢ ㄎㄨ ㄉㄜ˙ ㄕㄨˋ ㄓ ㄋㄥˊ ㄍㄢˇ ㄎㄨㄞˋ ㄓㄤˇ ㄔㄨ ㄒㄧㄣ ㄧㄚˊ ㄇㄟˇ ㄌㄧˋ ㄉㄜ˙ ㄏㄨㄚ ㄦˊ ㄧㄝˇ ㄋㄥˊ ㄎㄨㄞˋ ㄎㄨㄞˋ ㄓㄢˋ ㄈㄤˋ ㄧㄡˇ ㄧˋ ㄊㄧㄢ ㄐㄩˋ ㄖㄣˊ ㄈㄚ ㄒㄧㄢˋ ㄨㄟˊ ㄑㄧㄤˊ ㄕㄤˋ ㄧㄡˇ ㄍㄜ˙ ㄒㄧㄠˇ ㄉㄨㄥˋ ㄏㄞˊ ㄗ˙ ㄇㄣ˙ ㄓㄥˋ ㄧí ㄍㄜ˙ ㄍㄜ˙ ㄘㄨㄥˊ ㄉㄨㄥˋ ㄎㄡˇ ㄗㄨㄢ ㄐㄧㄣˋ ㄏㄨㄚ ㄩㄢˊ ㄊㄚ ㄇㄣ˙ ㄗㄡˇ ㄍㄨㄛˋ ㄉㄜ˙ ㄉㄧˋ ㄈㄤ ㄘㄠˇ ㄌㄩˋ ㄌㄜ˙ ㄆㄠˇ ㄍㄨㄛˋ ㄉㄜ˙ ㄉㄧˋ ㄈㄤ ㄏㄨㄚ ㄎㄞ ㄌㄜ˙ ㄊㄧㄠˋ ㄍㄨㄛˋ ㄉㄜ˙ ㄉㄧˋ ㄈㄤ ㄒㄧㄠˇ ㄋㄧㄠˇ ㄈㄟ ㄌㄞˊ ㄌㄜ˙ ㄏㄨㄚ ㄩㄢˊ ㄧㄡˋ ㄖㄜˋ ㄋㄠˋ ㄌㄜ˙ ㄑㄧˇ ㄌㄞˊ ㄐㄩˋ ㄖㄣˊ ㄓㄜˋ ㄘㄞˊ ㄏㄨㄤˇ ㄖㄢˊ ㄉㄚˋ ㄨˋ ㄉㄜ˙ ㄕㄨㄛ ㄇㄟˊ ㄧㄡˇ ㄏㄞˊ ㄗ˙ ㄇㄣ˙ ㄉㄜ˙ ㄒㄧㄠˋ ㄕㄥ ㄏㄨㄚ ㄩㄢˊ ㄌㄧˇ ㄏㄞˊ ㄧㄡˇ ㄕㄣˊ ㄇㄜ˙ ㄎㄨㄞˋ ㄌㄜˋ ㄋㄜ˙ ㄩˊ ㄕˋ ㄊㄚ ㄅㄚˇ ㄨㄟˊ ㄑㄧㄤˊ ㄔㄞ ㄔㄨˊ ㄖㄤˋ ㄏㄞˊ ㄗ˙ ㄇㄣ˙ ㄎㄜˇ ㄧˇ ㄗˋ ㄧㄡˊ ㄗˋ ㄗㄞˋ ㄉㄜ˙ ㄐㄧㄣˋ ㄌㄞˊ ㄧㄡˊ ㄨㄢˊ ㄏㄞˊ ㄗ˙ ㄇㄣ˙ ㄌㄞˊ ㄉㄠˋ ㄐㄩˋ ㄖㄣˊ ㄉㄜ˙ ㄕㄣ ㄅㄧㄢ ㄨㄟˊ ㄓㄜ˙ ㄊㄚ ㄔㄤˋ ㄓㄜ˙ ㄊㄧㄠˋ ㄓㄜ˙ ㄎㄞ ㄒㄧㄣ ㄐㄧˊ ㄌㄜ˙ ㄓㄜˋ ㄕí ㄅㄞˇ ㄏㄨㄚ ㄕㄥˋ ㄎㄞ ㄋㄧㄠˇ ㄩˇ ㄏㄨㄚ ㄒㄧㄤ ㄔㄨㄣ ㄊㄧㄢ ㄙㄨㄟˊ ㄓㄜ˙ ㄏㄞˊ ㄗ˙ ㄇㄣ˙ ㄉㄜ˙ ㄒㄧㄠˋ ㄕㄥ ㄧㄡˋ ㄏㄨㄟˊ ㄉㄠˋ ㄏㄨㄚ ㄩㄢˊ ㄌㄧˇ ㄌㄞˊ ㄌㄜ˙`
+            },
+            L12: {
+                text: `那一天，因為飛機故障，我一個人在沙漠過了一夜。第二天早上，有個細細的聲音叫醒我：「請你……幫我畫一隻綿羊！」我跳了起來，不敢相信的揉著眼睛，這裡是沙漠正中央，遠離人煙快要兩千公里，這個小男孩怎麼出現的？\n看我不說話，他溫柔而客氣的重複說著：「請你畫一隻綿羊給我好嗎？」他是誰？他從哪兒來？他為什麼要一隻綿羊？那時的我，竟然沒說出心中的疑問，就拿出紙和筆，打算幫他的忙。我不太會畫畫，上一次畫畫是在六歲的時候，我畫了一張畫，畫完後直冒冷汗，心裡害怕極了！可是每個大人都很不以為然的說：「不過是一頂帽子，怎麼會可怕呢？」那時，我剛讀完一本關於原始森林的書，我畫的真的不是帽子。\n小男孩用期待的眼神看著我：「你可以開始畫了嗎？」該怎麼畫一隻綿羊呢？我心裡半點想法都沒有，只好在紙上畫了六歲時的那幅畫。小男孩一看就後退一大步：「不！不！這太可怕了，我不要一條吞下大象的蟒蛇！」這時，換我驚訝得說不出話來，他怎麼知道我畫的就是一條正在消化大象的蟒蛇？\n這就是我和「小王子」認識的經過，在他離開前，我聽他說了很多的故事。一直到現在，他還是我心中那位最奇特的朋友。`,
+                zhuyin_codes: `ㄋㄚˋ ㄧˋ ㄊㄧㄢ ㄧㄣ ㄨㄟˋ ㄈㄟ ㄐㄧ ㄍㄨˋ ㄓㄤˋ ㄨㄛˇ ㄧí ㄍㄜ˙ ㄖㄣˊ ㄗㄞˋ ㄕㄚ ㄇㄛˋ ㄍㄨㄛˋ ㄌㄜ˙ ㄧí ㄧㄝˋ ㄉㄧˋ ㄦˋ ㄊㄧㄢ ㄗㄠˇ ㄕㄤˋ ㄧㄡˇ ㄍㄜ˙ ㄒㄧˋ ㄒㄧˋ ㄉㄜ˙ ㄕㄥ ㄧㄣ ㄐㄧㄠˋ ㄒㄧㄥˇ ㄨㄛˇ ㄑㄧㄥˇ ㄋㄧˇ ㄅㄤ ㄨㄛˇ ㄏㄨㄚˋ ㄧˋ ㄓ ㄇㄧㄢˊ ㄧㄤˊ ㄨㄛˇ ㄊㄧㄠˋ ㄌㄜ˙ ㄑㄧˇ ㄌㄞˊ ㄅㄨˋ ㄍㄢˇ ㄒㄧㄤ ㄒㄧㄣˋ ㄉㄜ˙ ㄖㄡˊ ㄓㄜ˙ ㄧㄢˇ ㄐㄧㄥ ㄓㄜˋ ㄌㄧˇ ㄕˋ ㄕㄚ ㄇㄛˋ ㄓㄥˋ ㄓㄨㄥ ㄧㄤ ㄩㄢˇ ㄌㄧˊ ㄖㄣˊ ㄧㄢ ㄎㄨㄞˋ ㄧㄠˋ ㄌㄧㄤˇ ㄑㄧㄢ ㄍㄨㄥ ㄌㄧˇ ㄓㄜˋ ㄍㄜ˙ ㄒㄧㄠˇ ㄋㄢˊ ㄏㄞˊ ㄗㄣˇ ㄇㄜ˙ ㄔㄨ ㄒㄧㄢˋ ㄉㄜ˙ ㄎㄢˋ ㄨㄛˇ ㄅㄨˋ ㄕㄨㄛ ㄏㄨㄚˋ ㄊㄚ ㄨㄣ ㄖㄡˊ ㄦˊ ㄎㄜˋ ㄑㄧˋ ㄉㄜ˙ ㄔㄨㄥˊ ㄈㄨˋ ㄕㄨㄛ ㄓㄜ˙ ㄑㄧㄥˇ ㄋㄧˇ ㄏㄨㄚˋ ㄧˋ ㄓ ㄇㄧㄢˊ ㄧㄤˊ ㄍㄟˇ ㄨㄛˇ ㄏㄠˇ ㄇㄚ˙ ㄊㄚ ㄕˋ ㄕㄟˊ ㄊㄚ ㄘㄨㄥˊ ㄋㄚˇ ㄦˊ ㄌㄞˊ ㄊㄚ ㄨㄟˋ ㄕㄣˊ ㄇㄜ˙ ㄧㄠˋ ㄧˋ ㄓ ㄇㄧㄢˊ ㄧㄤˊ ㄋㄚˋ ㄕí ㄉㄜ˙ ㄨㄛˇ ㄐㄧㄥˋ ㄖㄢˊ ㄇㄟˊ ㄕㄨㄛ ㄔㄨ ㄒㄧㄣ ㄓㄨㄥ ㄉㄜ˙ ㄧí ㄨㄣˋ ㄐㄧㄡˋ ㄋㄚˊ ㄔㄨ ㄓˇ ㄏㄢˋ ㄅㄧˇ ㄉㄚˇ ㄙㄨㄢˋ ㄅㄤ ㄊㄚ ㄉㄜ˙ ㄇㄤˊ ㄨㄛˇ ㄅㄨˊ ㄊㄞˋ ㄏㄨㄟˋ ㄏㄨㄚˋ ㄏㄨㄚˋ ㄕㄤˋ ㄧí ㄘˋ ㄏㄨㄚˋ ㄏㄨㄚˋ ㄕˋ ㄗㄞˋ ㄌㄧㄡˋ ㄙㄨㄟˋ ㄉㄜ˙ ㄕˊ ㄏㄡˋ ㄨㄛˇ ㄏㄨㄚˋ ㄌㄜ˙ ㄧˋ ㄓㄤ ㄏㄨㄚˋ ㄏㄨㄚˋ ㄨㄢˊ ㄏㄡˋ ㄓˊ ㄇㄠˋ ㄌㄥˇ ㄏㄢˋ ㄒㄧㄣ ㄌㄧˇ ㄏㄞˋ ㄆㄚˋ ㄐㄧˊ ㄌㄜ˙ ㄎㄜˇ ㄕˋ ㄇㄟˇ ㄍㄜ˙ ㄉㄚˋ ㄖㄣˊ ㄉㄡ ㄏㄣˇ ㄅㄨˋ ㄧˇ ㄨㄟˊ ㄖㄢˊ ㄉㄜ˙ ㄕㄨㄛ ㄅㄨˊ ㄍㄨㄛˋ ㄕˋ ㄧˋ ㄉㄧㄥˇ ㄇㄠào ㄗ˙ ㄗㄣˇ ㄇㄜ˙ ㄏㄨㄟˋ ㄎㄜˇ ㄆㄚˋ ㄋㄜ˙ ㄋㄚˋ ㄕí ㄨㄛˇ ㄍㄤ ㄉㄨˊ ㄨㄢˊ ㄧˋ ㄅㄣˇ ㄍㄨㄢ ㄩˊ ㄩㄢˊ ㄕˇ ㄙㄣ ㄌㄧㄣˊ ㄉㄜ˙ ㄕㄨ ㄨㄛˇ ㄏㄨㄚˋ ㄉㄜ˙ ㄓㄣ ㄉㄜ˙ ㄅㄨˊ ㄕˋ ㄇㄠào ㄗ˙ ㄒㄧㄠˇ ㄋㄢˊ ㄏㄞˊ ㄩㄥˋ ㄑㄧˊ ㄉㄞˋ ㄉㄜ˙ ㄧㄢˇ ㄕㄣˊ ㄎㄢˋ ㄓㄜ˙ ㄨㄛˇ ㄋㄧˇ ㄎㄜˇ ㄧˇ ㄎㄞ ㄕˇ ㄏㄨㄚˋ ㄌㄜ˙ ㄇㄚ˙ ㄍㄞ ㄗㄣˇ ㄇㄜ˙ ㄏㄨㄚˋ ㄧˋ ㄓ ㄇㄧㄢˊ ㄧㄤˊ ㄋㄜ˙ ㄨㄛˇ ㄒㄧㄣ ㄌㄧˇ ㄅㄢˋ ㄉㄧㄢˇ ㄒㄧㄤˇ ㄈㄚˇ ㄉㄡ ㄇㄟˊ ㄧㄡˇ ㄓˇ ㄏㄠˇ ㄗㄞˋ ㄓˇ ㄕㄤˋ ㄏㄨㄚˋ ㄌㄜ˙ ㄌㄧㄡˋ ㄙㄨㄟˋ ㄕí ㄉㄜ˙ ㄋㄚˋ ㄈㄨˊ ㄏㄨㄚˋ ㄒㄧㄠˇ ㄋㄢˊ ㄏㄞˊ ㄧí ㄎㄢˋ ㄐㄧㄡˋ ㄏㄡˋ ㄊㄨㄟˋ ㄧí ㄉㄚˋ ㄅㄨˋ ㄅㄨˋ ㄅㄨˋ ㄓㄜˋ ㄊㄞˋ ㄎㄜˇ ㄆㄚˋ ㄌㄜ˙ ㄨㄛˇ ㄅㄨˊ ㄧㄠˋ ㄧˋ ㄊㄧㄠˊ ㄊㄨㄣ ㄒㄧㄚˋ ㄉㄚˋ ㄒㄧㄤˋ ㄉㄜ˙ ㄇㄤˇ ㄕㄜˊ ㄓㄜˋ ㄕí ㄏㄨㄢˋ ㄨㄛˇ ㄐㄧㄥ ㄧㄚˋ ㄉㄜ˙ ㄕㄨㄛ ㄅㄨˋ ㄔㄨ ㄏㄨㄚˋ ㄌㄞˊ ㄊㄚ ㄗㄣˇ ㄇㄜ˙ ㄓ ㄉㄠˋ ㄨㄛˇ ㄏㄨㄚˋ ㄉㄜ˙ ㄐㄧㄡˋ ㄕˋ ㄧˋ ㄊㄧㄠˊ ㄓㄥˋ ㄗㄞˋ ㄒㄧㄠ ㄏㄨㄚˋ ㄉㄚˋ ㄒㄧㄤˋ ㄉㄜ˙ ㄇㄤˇ ㄕㄜˊ ㄓㄜˋ ㄐㄧㄡˋ ㄕˋ ㄨㄛˇ ㄏㄢˋ ㄒㄧㄠˇ ㄨㄤˊ ㄗˇ ㄖㄣˋ ㄕˋ ㄉㄜ˙ ㄐㄧㄥ ㄍㄨㄛˋ ㄗㄞˋ ㄊㄚ ㄌㄧˊ ㄎㄞ ㄑㄧㄢˊ ㄨㄛˇ ㄊㄧㄥ ㄊㄚ ㄕㄨㄛ ㄌㄜ˙ ㄏㄣˇ ㄉㄨㄛ ㄉㄜ˙ ㄍㄨˋ ㄕˋ ㄧˋ ㄓˊ ㄉㄠˋ ㄒㄧㄢˋ ㄗㄞˋ ㄊㄚ ㄏㄞˊ ㄕˋ ㄨㄛˇ ㄒㄧㄣ ㄓㄨㄥ ㄋㄚˋ ㄨㄟˋ ㄗㄨㄟˋ ㄑㄧí ㄊㄜˋ ㄉㄜ˙ ㄆㄥˊ ㄧㄡˇ`
+            }
+        };
+
+        // State Variables
+        let currentTextData = TEXTS.L01;
+        let segments = [];
+        let timerInterval = null;
+        let timeRemaining = 600;
+        let totalTimeSet = 600;
+        let isRacing = false;
+        let startTime = null;
+
+        // DOM Elements
+        const textSourceSelect = document.getElementById('textSource');
+        const fileInput = document.getElementById('fileInput');
+        const zhuyinToggle = document.getElementById('zhuyinToggle');
+        const timeSettingInput = document.getElementById('timeSetting');
+        const timerDisplay = document.getElementById('timerDisplay');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const linesContainer = document.getElementById('linesContainer');
+        const statusText = document.getElementById('statusText');
+        const statusDot = document.getElementById('statusDot');
+        const progressText = document.getElementById('progressText');
+        const liveWPM = document.getElementById('liveWPM');
+        
+        // Modal Elements
+        const resultModal = document.getElementById('resultModal');
+        const modalContent = document.getElementById('modalContent');
+        const resCorrect = document.getElementById('resCorrect');
+        const resIncorrect = document.getElementById('resIncorrect');
+        const resAccuracy = document.getElementById('resAccuracy');
+        const resCPM = document.getElementById('resCPM');
+
+        // Initialization
+        function init() {
+            prepareGameLines(currentTextData);
+            updateTimerDisplay();
+        }
+
+        // --- Core Helper: Generate HTML with Ruby ---
+        // 將純文字與注音代碼合併為 HTML
+        function generateRubyHtml(text, zhuyinCodeString) {
+            if (!zhuyinCodeString) {
+                // 如果沒有注音資料，回傳純文字的 span 結構
+                return text.split('').map(char => `<span>${char}</span>`).join('');
+            }
+
+            const zhuyinList = zhuyinCodeString.trim().split(' ');
+            let html = '';
+            let zIndex = 0;
+
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                // 判斷是否為中文字 (簡單判斷範圍，包含常見漢字)
+                // 標點符號不加注音
+                if (/[\u4e00-\u9fa5]/.test(char)) {
+                    if (zIndex < zhuyinList.length) {
+                        const code = zhuyinList[zIndex];
+                        // 使用 ruby 標籤包覆
+                        html += `<ruby><span>${char}</span><rt>${code}</rt></ruby>`;
+                        zIndex++;
+                    } else {
+                        // 防呆：注音不夠時顯示原字
+                        html += `<span>${char}</span>`;
+                    }
+                } else {
+                    // 標點符號或非中文字
+                    html += `<span>${char}</span>`;
+                }
+            }
+            return html;
+        }
+
+        // --- Helper: Split Text ---
+        // 根據標點符號分句，回傳 { text: string, zhuyin: string } 的陣列
+        function splitTextData(textData) {
+            const rawText = textData.text;
+            const rawZhuyin = textData.zhuyin_codes || "";
+            
+            // 1. 分割純文字
+            const regex = /[^。！？：；\n]+[。！？：；\n]*|.+/g;
+            const textSegments = rawText.match(regex).map(s => s.trim()).filter(s => s.length > 0);
+            
+            if (!rawZhuyin) {
+                return textSegments.map(seg => ({ text: seg, zhuyin: "" }));
+            }
+
+            // 2. 分割注音代碼 (這比較複雜，因為注音是空格分隔的字串)
+            // 我們需要根據 textSegments 中每個片段含有的「中文字數量」，來從 rawZhuyin 中切出對應的代碼
+            const zhuyinList = rawZhuyin.trim().split(' ');
+            let currentZhuyinIndex = 0;
+            
+            return textSegments.map(seg => {
+                // 計算該片段有幾個中文字
+                let chineseCharCount = 0;
+                for (let char of seg) {
+                    if (/[\u4e00-\u9fa5]/.test(char)) {
+                        chineseCharCount++;
+                    }
+                }
+                
+                // 取出對應數量的注音
+                const segmentZhuyinList = zhuyinList.slice(currentZhuyinIndex, currentZhuyinIndex + chineseCharCount);
+                currentZhuyinIndex += chineseCharCount;
+                
+                return {
+                    text: seg,
+                    zhuyin: segmentZhuyinList.join(' ')
+                };
+            });
+        }
+
+        function prepareGameLines(textData) {
+            const segmentsData = splitTextData(textData);
+            segments = segmentsData.map(s => s.text); // 保存純文字供比對用
+
+            linesContainer.innerHTML = '';
+
+            segmentsData.forEach((segData, index) => {
+                // Wrapper
+                const row = document.createElement('div');
+                row.className = "flex flex-col gap-1 pb-4 border-b border-gray-100 last:border-0";
+                
+                // Reference Text Area
+                const refDiv = document.createElement('div');
+                refDiv.className = "typing-font text-gray-500 text-xl leading-relaxed select-none break-all flex flex-wrap items-end pl-1";
+                refDiv.id = `ref-${index}`;
+                
+                // 生成 HTML (包含 ruby 標籤)
+                // 這裡不管有沒有開注音，都生成 ruby 結構，透過 CSS 來隱藏/顯示 <rt>
+                // 這樣切換時不需要重新生成 DOM，也不會影響輸入框狀態
+                refDiv.innerHTML = generateRubyHtml(segData.text, segData.zhuyin);
+                
+                // Input Field
+                const input = document.createElement('input');
+                input.type = "text";
+                input.className = "line-input typing-font text-xl";
+                input.id = `input-${index}`;
+                input.disabled = true;
+                input.autocomplete = "off";
+                input.spellcheck = false;
+                input.placeholder = "點擊「開始」後在此輸入...";
+                
+                // Event Listeners
+                input.addEventListener('input', (e) => handleLineInput(index, e));
+                input.addEventListener('keydown', (e) => handleLineKeydown(index, e));
+                input.addEventListener('focus', () => highlightActiveLine(index));
+
+                row.appendChild(refDiv);
+                row.appendChild(input);
+                linesContainer.appendChild(row);
+            });
+            
+            updateZhuyinVisibility();
+        }
+
+        function updateZhuyinVisibility() {
+            if (zhuyinToggle.checked) {
+                linesContainer.classList.remove('no-zhuyin');
+            } else {
+                linesContainer.classList.add('no-zhuyin');
+            }
+        }
+
+        // --- Interaction Logic ---
+
+        function handleLineInput(index, e) {
+            if (!isRacing) return;
+            
+            const inputVal = e.target.value;
+            const refText = segments[index]; // 始終比對純文字
+            const refDiv = document.getElementById(`ref-${index}`);
+            
+            // 變色邏輯：需要同時處理有 ruby 和沒 ruby 的情況 (文字在 span 內)
+            // 我們的 generateRubyHtml 結構是：
+            // 中文: <ruby><span>字</span><rt>...</rt></ruby>
+            // 符號: <span>，</span>
+            // 所以我們要找所有的 span (它們包著字)
+            
+            const charSpans = refDiv.querySelectorAll('span'); // 這會選到所有字元 (包含在 ruby 內的)
+
+            charSpans.forEach((span, i) => {
+                // 重置樣式
+                span.className = '';
+                // 移除可能的父層 ruby 的額外樣式 (如果有)
+                
+                if (i < inputVal.length) {
+                    if (inputVal[i] === refText[i]) {
+                        span.classList.add('char-correct');
+                    } else {
+                        span.classList.add('char-incorrect');
+                    }
+                } else if (i === inputVal.length) {
+                    span.classList.add('char-current');
+                }
+            });
+
+            calculateProgress();
+        }
+
+        function handleLineKeydown(index, e) {
+            if (!isRacing) return;
+
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const nextInput = document.getElementById(`input-${index + 1}`);
+                if (nextInput) {
+                    nextInput.focus();
+                }
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                const prevInput = document.getElementById(`input-${index - 1}`);
+                if (prevInput) prevInput.focus();
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                const nextInput = document.getElementById(`input-${index + 1}`);
+                if (nextInput) nextInput.focus();
+            }
+        }
+
+        function highlightActiveLine(index) {
+            const row = document.getElementById(`input-${index}`).parentElement;
+            
+            Array.from(linesContainer.children).forEach(child => {
+                child.classList.remove('bg-blue-50/50');
+            });
+            
+            row.classList.add('bg-blue-50/50');
+            
+            const containerRect = linesContainer.getBoundingClientRect();
+            const rowRect = row.getBoundingClientRect();
+            
+            if (rowRect.bottom > containerRect.bottom || rowRect.top < containerRect.top) {
+                row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        function calculateProgress() {
+            let totalTyped = 0;
+            let totalLength = 0;
+            let currentCorrect = 0;
+            
+            segments.forEach((seg, i) => {
+                const val = document.getElementById(`input-${i}`).value;
+                totalLength += seg.length;
+                totalTyped += val.length;
+                
+                for(let k=0; k<val.length && k<seg.length; k++) {
+                    if (val[k] === seg[k]) currentCorrect++;
+                }
+            });
+
+            const percentage = Math.min(100, Math.round((totalTyped / totalLength) * 100));
+            progressText.textContent = `${percentage}%`;
+
+            const elapsedMin = (Date.now() - startTime) / 60000;
+            if (elapsedMin > 0 && totalTyped > 5) {
+                const cpm = Math.round(currentCorrect / elapsedMin);
+                liveWPM.textContent = cpm;
+            }
+
+            if (totalTyped >= totalLength) {
+                const lastInput = document.getElementById(`input-${segments.length - 1}`);
+                if (lastInput.value.length >= segments[segments.length - 1].length) {
+                    endGame();
+                }
+            }
+        }
+
+        // --- Core Game Control ---
+
+        function startGame() {
+            let mins = parseInt(timeSettingInput.value);
+            totalTimeSet = mins * 60;
+            timeRemaining = totalTimeSet;
+
+            isRacing = true;
+            startTime = Date.now();
+            
+            const inputs = document.querySelectorAll('.line-input');
+            inputs.forEach(inp => {
+                inp.disabled = false;
+                inp.value = '';
+                inp.placeholder = '';
+            });
+            
+            if(inputs.length > 0) inputs[0].focus();
+
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            textSourceSelect.disabled = true;
+            timeSettingInput.disabled = true;
+            // 遊戲中不禁止切換注音，因為我們是用 CSS 控制的，切換不會影響邏輯
+            
+            statusText.textContent = "比賽進行中...";
+            statusText.className = "font-bold text-blue-600 animate-pulse";
+            statusDot.className = "w-2 h-2 rounded-full bg-blue-500 animate-ping";
+
+            updateTimerDisplay();
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                timeRemaining--;
+                updateTimerDisplay();
+                if (timeRemaining <= 0) {
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        function endGame() {
+            isRacing = false;
+            clearInterval(timerInterval);
+            
+            const inputs = document.querySelectorAll('.line-input');
+            inputs.forEach(inp => inp.disabled = true);
+
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            statusText.textContent = "比賽結束";
+            statusText.className = "font-bold text-red-600";
+            statusDot.className = "w-2 h-2 rounded-full bg-red-500";
+            textSourceSelect.disabled = false;
+            
+            calculateAndShowResults();
+        }
+
+        function calculateAndShowResults() {
+            let correctCount = 0;
+            let incorrectCount = 0;
+            let totalTypedLength = 0;
+
+            segments.forEach((seg, i) => {
+                const val = document.getElementById(`input-${i}`).value;
+                totalTypedLength += val.length;
+
+                for (let k = 0; k < val.length; k++) {
+                    if (k < seg.length) {
+                        if (val[k] === seg[k]) {
+                            correctCount++;
+                        } else {
+                            incorrectCount++;
+                        }
+                    } else {
+                        incorrectCount++; 
+                    }
+                }
+            });
+
+            const accuracy = (totalTypedLength > 0) 
+                ? Math.round((correctCount / totalTypedLength) * 100) 
+                : 0;
+
+            const timeElapsedSeconds = totalTimeSet - timeRemaining;
+            const effectiveTimeMins = Math.max(timeElapsedSeconds, 1) / 60;
+            const cpm = Math.round(correctCount / effectiveTimeMins);
+
+            resCorrect.textContent = correctCount;
+            resIncorrect.textContent = incorrectCount;
+            resAccuracy.textContent = `${accuracy}%`;
+            resCPM.textContent = cpm;
+
+            resultModal.classList.remove('hidden');
+            resultModal.classList.add('flex');
+            setTimeout(() => {
+                resultModal.classList.remove('opacity-0');
+                modalContent.classList.remove('scale-95');
+                modalContent.classList.add('scale-100');
+            }, 10);
+        }
+
+        function resetGame() {
+            isRacing = false;
+            clearInterval(timerInterval);
+            
+            let mins = parseInt(timeSettingInput.value);
+            totalTimeSet = mins * 60;
+            timeRemaining = totalTimeSet;
+            updateTimerDisplay();
+
+            prepareGameLines(currentTextData);
+
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            textSourceSelect.disabled = false;
+            timeSettingInput.disabled = false;
+            
+            statusText.textContent = "準備就緒";
+            statusText.className = "font-semibold text-gray-700";
+            statusDot.className = "w-2 h-2 rounded-full bg-gray-400";
+            progressText.textContent = "0%";
+            liveWPM.textContent = "--";
+        }
+
+        // --- Event Listeners ---
+        
+        textSourceSelect.addEventListener('change', (e) => {
+            if (isRacing) resetGame();
+            const val = e.target.value;
+            if (val === 'custom') {
+                fileInput.click();
+            } else {
+                currentTextData = TEXTS[val];
+                fileInput.value = ''; 
+                prepareGameLines(currentTextData);
+            }
+        });
+
+        // Toggle Zhuyin (CSS only switch now)
+        zhuyinToggle.addEventListener('change', (e) => {
+            updateZhuyinVisibility();
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) {
+                textSourceSelect.value = 'L01';
+                currentTextData = TEXTS.L01;
+                prepareGameLines(currentTextData);
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const content = e.target.result;
+                const cleanContent = content.trim(); 
+                if(cleanContent.length === 0) {
+                    alert("檔案內容為空！");
+                    return;
+                }
+                currentTextData = { text: cleanContent, zhuyin_codes: "" }; // No zhuyin for custom files
+                prepareGameLines(currentTextData);
+            };
+            reader.readAsText(file);
+        });
+
+        timeSettingInput.addEventListener('change', (e) => {
+            if (isRacing) return;
+            let mins = parseInt(e.target.value);
+            if (mins < 1) mins = 1;
+            if (mins > 120) mins = 120;
+            totalTimeSet = mins * 60;
+            timeRemaining = totalTimeSet;
+            updateTimerDisplay();
+        });
+
+        startBtn.addEventListener('click', () => {
+            if (isRacing) return;
+            startGame();
+        });
+
+        stopBtn.addEventListener('click', () => {
+            if (!isRacing) return;
+            endGame();
+        });
+
+        resetBtn.addEventListener('click', () => {
+            resetGame();
+        });
+
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeRemaining / 60);
+            const seconds = timeRemaining % 60;
+            timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            if (timeRemaining < 60) {
+                timerDisplay.classList.add('text-red-600', 'bg-red-50');
+                timerDisplay.classList.remove('text-blue-600', 'bg-blue-50');
+            } else {
+                timerDisplay.classList.remove('text-red-600', 'bg-red-50');
+                timerDisplay.classList.add('text-blue-600', 'bg-blue-50');
+            }
+        }
+
+        function closeModal() {
+            resultModal.classList.add('opacity-0');
+            modalContent.classList.remove('scale-100');
+            modalContent.classList.add('scale-95');
+            setTimeout(() => {
+                resultModal.classList.add('hidden');
+                resultModal.classList.remove('flex');
+                resetGame();
+            }, 300);
+        }
+
+        init();
+
+    </script>
+</body>
+</html>
